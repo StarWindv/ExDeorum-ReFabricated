@@ -20,6 +20,7 @@
   "license": "GPL-3-Clause",
   "description": "Bringing back the original Ex Nihilo. Fabric port.",
   "environment": "*",
+  "icon": "assets/exdeorum/icon.png",
   "entrypoints": {
     "main": [
       "top.starwindv.exdeorum.ExDeorum"
