@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "#": "minecraft:iron_block",
+    "G": "minecraft:glass",
+    "H": "minecraft:hopper",
+    "I": "minecraft:iron_bars"
+  },
+  "pattern": [
+    "#G#",
+    "IHI",
+    "I I"
+  ],
+  "result": {
+    "id": "exdeorum:mechanical_sieve"
+  }
+}

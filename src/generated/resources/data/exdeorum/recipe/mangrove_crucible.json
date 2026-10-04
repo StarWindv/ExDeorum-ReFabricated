@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "m": "minecraft:mangrove_slab",
+    "s": "minecraft:mangrove_log"
+  },
+  "pattern": [
+    "s s",
+    "s s",
+    "sms"
+  ],
+  "result": {
+    "id": "exdeorum:mangrove_crucible"
+  }
+}

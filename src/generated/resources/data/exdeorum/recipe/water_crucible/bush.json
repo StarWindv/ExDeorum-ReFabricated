@@ -1,0 +1,11 @@
+{
+  "type": "exdeorum:water_crucible",
+  "fluid": {
+    "amount": 100,
+    "id": "minecraft:water"
+  },
+  "ingredient": [
+    "minecraft:bush",
+    "minecraft:firefly_bush"
+  ]
+}

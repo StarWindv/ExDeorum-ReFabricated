@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "exdeorum",
+  "version": "${version}",
+  "name": "Ex Deorum",
+  "authors": [
+    "TheDarkColour",
+    "StarWindv"
+  ],
+  "contact": {
+    "homepage": "https://github.com/Thedarkcolour/ExDeorum",
+    "sources": "https://github.com/Thedarkcolour/ExDeorum",
+    "issues": "https://github.com/Thedarkcolour/ExDeorum/issues",
+    "original": "https://github.com/Thedarkcolour/ExDeorum"
+  },
+  "custom": {
+    "credits": "Herobrine knows all. Thanks to Erasmus_Crowley for the original 1.7 mod Ex Nihilo",
+    "fabricPort": "This is a Fabric port of the NeoForge original by TheDarkColour. See README.md for the full list of changes and the licenses involved."
+  },
+  "license": "GPL-3-Clause",
+  "description": "Bringing back the original Ex Nihilo. Fabric port.",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "top.starwindv.exdeorum.ExDeorum"
+    ],
+    "client": [
+      "top.starwindv.exdeorum.client.ClientHandler"
+    ],
+    "modmenu": [
+      "top.starwindv.exdeorum.compat.ExDeorumModMenu"
+    ]
+  },
+  "mixins": [
+    "exdeorum.mixins.json"
+  ],
+  "accessWidener": "exdeorum.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

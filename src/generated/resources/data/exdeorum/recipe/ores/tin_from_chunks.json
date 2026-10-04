@@ -1,0 +1,8 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/tin"] }
+  ],
+  "type": "exdeorum:ore_chunk",
+  "ore": "c:ores/tin",
+  "ore_chunk": "exdeorum:tin_ore_chunk"
+}

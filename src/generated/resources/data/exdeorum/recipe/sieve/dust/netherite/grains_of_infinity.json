@@ -1,0 +1,16 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["enderio"] }
+  ],
+  "type": "exdeorum:sieve",
+  "ingredient": "exdeorum:dust",
+  "mesh": "exdeorum:netherite_mesh",
+  "result": {
+    "id": "enderio:grains_of_infinity"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.135
+  }
+}

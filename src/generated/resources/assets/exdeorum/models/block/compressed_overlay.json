@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "particle": "exdeorum:block/compressed_overlay",
+    "all": {
+      "sprite": "exdeorum:block/compressed_overlay",
+      "force_translucent": true
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "variants": {
+    "": {
+      "fabric:type": "fabric:composite",
+      "models": [
+        {
+          "model": "exdeorum:block/dust"
+        },
+        {
+          "model": "exdeorum:block/compressed_overlay"
+        }
+      ]
+    }
+  }
+}

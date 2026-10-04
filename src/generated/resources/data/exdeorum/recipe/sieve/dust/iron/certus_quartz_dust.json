@@ -1,0 +1,16 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["ae2"] }
+  ],
+  "type": "exdeorum:sieve",
+  "ingredient": "exdeorum:dust",
+  "mesh": "exdeorum:iron_mesh",
+  "result": {
+    "id": "ae2:certus_quartz_dust"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.075
+  }
+}

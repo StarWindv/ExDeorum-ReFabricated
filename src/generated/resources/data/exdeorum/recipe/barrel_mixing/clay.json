@@ -1,0 +1,11 @@
+{
+  "type": "exdeorum:barrel_mixing",
+  "fluid": {
+    "amount": 1000,
+    "ingredient": "minecraft:water"
+  },
+  "ingredient": "exdeorum:dust",
+  "result": {
+    "id": "minecraft:clay"
+  }
+}

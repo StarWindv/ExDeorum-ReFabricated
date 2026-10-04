@@ -1,0 +1,15 @@
+{
+  "variants": {
+    "": {
+      "fabric:type": "fabric:composite",
+      "models": [
+        {
+          "model": "minecraft:block/gravel"
+        },
+        {
+          "model": "exdeorum:block/compressed_overlay"
+        }
+      ]
+    }
+  }
+}

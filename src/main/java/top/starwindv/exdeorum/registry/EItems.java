@@ -1,0 +1,298 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.registry;
+
+import com.google.common.collect.Iterables;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.item.*;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.Fluids;
+import top.starwindv.exdeorum.ExDeorum;
+import top.starwindv.exdeorum.compat.CompatUtil;
+import top.starwindv.exdeorum.item.*;
+import top.starwindv.exdeorum.recipe.RecipeUtil;
+import top.starwindv.exdeorum.tag.EItemTags;
+
+import java.util.List;
+
+public class EItems {
+    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(ExDeorum.ID);
+
+    // Silk Worm
+    public static final DeferredItem<SilkwormItem> SILKWORM = register("silkworm", SilkwormItem::new);
+    public static final DeferredItem<Item> COOKED_SILKWORM = register("cooked_silkworm", properties -> new CookedSilkwormItem(properties.food(new FoodProperties.Builder().nutrition(2).saturationModifier(0.6f).build())));
+
+    // Crooks
+    public static final DeferredItem<Item> CROOK = register("crook", properties -> new CrookItem(properties.durability(128), 2.0f));
+    public static final DeferredItem<Item> BONE_CROOK = register("bone_crook", properties -> new CrookItem(properties.durability(312), 4.0f));
+
+    // Watering cans
+    public static final DeferredItem<Item> WOODEN_WATERING_CAN = register("wooden_watering_can", properties -> new WateringCanItem(300, properties.stacksTo(1)));
+    public static final DeferredItem<Item> STONE_WATERING_CAN = register("stone_watering_can", properties -> new WateringCanItem(1000, properties.stacksTo(1)));
+    public static final DeferredItem<Item> COPPER_WATERING_CAN = register("copper_watering_can", properties -> new WateringCanItem(2000, properties.stacksTo(1)));
+    public static final DeferredItem<Item> IRON_WATERING_CAN = register("iron_watering_can", properties -> new WateringCanItem(2000, properties.stacksTo(1)));
+    public static final DeferredItem<Item> GOLDEN_WATERING_CAN = register("golden_watering_can", properties -> new WateringCanItem(4000, properties.stacksTo(1)));
+    public static final DeferredItem<Item> DIAMOND_WATERING_CAN = register("diamond_watering_can", properties -> new WideWateringCanItem(false, properties.stacksTo(1)));
+    public static final DeferredItem<Item> NETHERITE_WATERING_CAN = register("netherite_watering_can", properties -> new WideWateringCanItem(true, properties.stacksTo(1)));
+
+    // Sieve Meshes
+    public static final DeferredItem<Item> STRING_MESH = register("string_mesh", properties -> new MeshItem(properties.stacksTo(16)));
+    public static final DeferredItem<Item> FLINT_MESH = register("flint_mesh", properties -> new MeshItem(properties.stacksTo(16)));
+    public static final DeferredItem<Item> IRON_MESH = register("iron_mesh", properties -> new MeshItem(properties.stacksTo(16)));
+    public static final DeferredItem<Item> GOLDEN_MESH = register("golden_mesh", properties -> new MeshItem(properties.stacksTo(16)));
+    public static final DeferredItem<Item> DIAMOND_MESH = register("diamond_mesh", properties -> new MeshItem(properties.stacksTo(16)));
+    public static final DeferredItem<Item> NETHERITE_MESH = register("netherite_mesh", properties -> new MeshItem(properties.stacksTo(16)));
+
+    // Hammers
+    public static final DeferredItem<Item> WOODEN_HAMMER = register("wooden_hammer", properties -> new HammerItem(ToolMaterial.WOOD, properties));
+    public static final DeferredItem<Item> STONE_HAMMER = register("stone_hammer", properties -> new HammerItem(ToolMaterial.STONE, properties));
+    public static final DeferredItem<Item> GOLDEN_HAMMER = register("golden_hammer", properties -> new HammerItem(ToolMaterial.GOLD, properties));
+    public static final DeferredItem<Item> IRON_HAMMER = register("iron_hammer", properties -> new HammerItem(ToolMaterial.IRON, properties));
+    public static final DeferredItem<Item> DIAMOND_HAMMER = register("diamond_hammer", properties -> new HammerItem(ToolMaterial.DIAMOND, properties));
+    public static final DeferredItem<Item> NETHERITE_HAMMER = register("netherite_hammer", properties -> new HammerItem(ToolMaterial.NETHERITE, properties));
+
+    // Compressed Hammers
+    public static final DeferredItem<Item> COMPRESSED_WOODEN_HAMMER = register("compressed_wooden_hammer", properties -> new HammerItem(ToolMaterial.WOOD, properties));
+    public static final DeferredItem<Item> COMPRESSED_STONE_HAMMER = register("compressed_stone_hammer", properties -> new HammerItem(ToolMaterial.STONE, properties));
+    public static final DeferredItem<Item> COMPRESSED_GOLDEN_HAMMER = register("compressed_golden_hammer", properties -> new HammerItem(ToolMaterial.GOLD, properties));
+    public static final DeferredItem<Item> COMPRESSED_IRON_HAMMER = register("compressed_iron_hammer", properties -> new HammerItem(ToolMaterial.IRON, properties));
+    public static final DeferredItem<Item> COMPRESSED_DIAMOND_HAMMER = register("compressed_diamond_hammer", properties -> new HammerItem(ToolMaterial.DIAMOND, properties));
+    public static final DeferredItem<Item> COMPRESSED_NETHERITE_HAMMER = register("compressed_netherite_hammer", properties -> new HammerItem(ToolMaterial.NETHERITE, properties));
+
+    // Ore Chunks
+    public static final DeferredItem<Item> IRON_ORE_CHUNK = registerSimpleItem("iron_ore_chunk");
+    public static final DeferredItem<Item> COPPER_ORE_CHUNK = registerSimpleItem("copper_ore_chunk");
+    public static final DeferredItem<Item> GOLD_ORE_CHUNK = registerSimpleItem("gold_ore_chunk");
+    // Modded Ore Chunks
+    public static final DeferredItem<Item> ALUMINUM_ORE_CHUNK = registerSimpleItem("aluminum_ore_chunk");
+    public static final DeferredItem<Item> COBALT_ORE_CHUNK = registerSimpleItem("cobalt_ore_chunk");
+    public static final DeferredItem<Item> SILVER_ORE_CHUNK = registerSimpleItem("silver_ore_chunk");
+    public static final DeferredItem<Item> LEAD_ORE_CHUNK = registerSimpleItem("lead_ore_chunk");
+    public static final DeferredItem<Item> PLATINUM_ORE_CHUNK = registerSimpleItem("platinum_ore_chunk");
+    public static final DeferredItem<Item> NICKEL_ORE_CHUNK = registerSimpleItem("nickel_ore_chunk");
+    public static final DeferredItem<Item> URANIUM_ORE_CHUNK = registerSimpleItem("uranium_ore_chunk");
+    public static final DeferredItem<Item> OSMIUM_ORE_CHUNK = registerSimpleItem("osmium_ore_chunk");
+    public static final DeferredItem<Item> TIN_ORE_CHUNK = registerSimpleItem("tin_ore_chunk");
+    public static final DeferredItem<Item> ZINC_ORE_CHUNK = registerSimpleItem("zinc_ore_chunk");
+    public static final DeferredItem<Item> IRIDIUM_ORE_CHUNK = registerSimpleItem("iridium_ore_chunk");
+    public static final DeferredItem<Item> THORIUM_ORE_CHUNK = registerSimpleItem("thorium_ore_chunk");
+    public static final DeferredItem<Item> MAGNESIUM_ORE_CHUNK = registerSimpleItem("magnesium_ore_chunk");
+    public static final DeferredItem<Item> LITHIUM_ORE_CHUNK = registerSimpleItem("lithium_ore_chunk");
+    public static final DeferredItem<Item> BORON_ORE_CHUNK = registerSimpleItem("boron_ore_chunk");
+
+    // Pebbles
+    public static final DeferredItem<Item> STONE_PEBBLE = registerSimpleItem("stone_pebble");
+    public static final DeferredItem<Item> DIORITE_PEBBLE = registerSimpleItem("diorite_pebble");
+    public static final DeferredItem<Item> GRANITE_PEBBLE = registerSimpleItem("granite_pebble");
+    public static final DeferredItem<Item> ANDESITE_PEBBLE = registerSimpleItem("andesite_pebble");
+    public static final DeferredItem<Item> DEEPSLATE_PEBBLE = registerSimpleItem("deepslate_pebble");
+    public static final DeferredItem<Item> TUFF_PEBBLE = registerSimpleItem("tuff_pebble");
+    public static final DeferredItem<Item> CALCITE_PEBBLE = registerSimpleItem("calcite_pebble");
+    public static final DeferredItem<Item> BLACKSTONE_PEBBLE = registerSimpleItem("blackstone_pebble");
+    public static final DeferredItem<Item> BASALT_PEBBLE = registerSimpleItem("basalt_pebble");
+
+    // Misc
+    public static final DeferredItem<Item> PORCELAIN_CLAY_BALL = registerSimpleItem("porcelain_clay_ball");
+    public static final DeferredItem<Item> GRASS_SEEDS = register("grass_seeds", properties -> new GrassSpreaderItem(properties, Blocks.GRASS_BLOCK::defaultBlockState));
+    public static final DeferredItem<Item> MYCELIUM_SPORES = register("mycelium_spores", properties -> new GrassSpreaderItem(properties, Blocks.MYCELIUM::defaultBlockState));
+    public static final DeferredItem<Item> WARPED_NYLIUM_SPORES = register("warped_nylium_spores", properties -> new NyliumSpreaderItem(properties, Blocks.WARPED_NYLIUM::defaultBlockState));
+    public static final DeferredItem<Item> CRIMSON_NYLIUM_SPORES = register("crimson_nylium_spores", properties -> new NyliumSpreaderItem(properties, Blocks.CRIMSON_NYLIUM::defaultBlockState));
+    public static final DeferredItem<Item> SCULK_CORE = register("sculk_core", properties -> new SculkCoreItem(properties.stacksTo(1)));
+    public static final DeferredItem<Item> CREAKING_CORE = register("creaking_core", CreakingCoreItem::new);
+    public static final DeferredItem<Item> RANDOM_POTTERY_SHERD = register("random_pottery_sherd", properties -> new RandomResultItem(properties, EItemTags.RANDOM_SHERD_DROPS));
+    public static final DeferredItem<Item> RANDOM_ARMOR_TRIM = register("random_armor_trim", properties -> new RandomResultItem(properties, EItemTags.RANDOM_TRIM_DROPS));
+    public static final DeferredItem<Item> WOOD_CHIPPINGS = registerSimpleItem("wood_chippings");
+
+    // Buckets
+    public static final DeferredItem<Item> UNFIRED_PORCELAIN_BUCKET = registerSimpleItem("unfired_porcelain_bucket");
+    public static final DeferredItem<Item> PORCELAIN_BUCKET = register("porcelain_bucket", properties -> new PorcelainBucket(() -> Fluids.EMPTY, properties.stacksTo(16)));
+    public static final DeferredItem<Item> PORCELAIN_WATER_BUCKET = register("porcelain_water_bucket", properties -> new PorcelainBucket(() -> Fluids.WATER, properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
+    public static final DeferredItem<Item> PORCELAIN_LAVA_BUCKET = register("porcelain_lava_bucket", properties -> new PorcelainBucket(() -> Fluids.LAVA, properties.stacksTo(1)));
+    public static final DeferredItem<Item> PORCELAIN_MILK_BUCKET = register("porcelain_milk_bucket", properties -> new PorcelainMilkBucket(properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
+    public static final DeferredItem<Item> PORCELAIN_WITCH_WATER_BUCKET = register("porcelain_witch_water_bucket", properties -> new PorcelainBucket(EFluids.WITCH_WATER, properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
+
+    // Fluids
+    public static final DeferredItem<Item> WITCH_WATER_BUCKET = register("witch_water_bucket", properties -> new BucketItem(EFluids.WITCH_WATER.get(), properties.craftRemainder(Items.BUCKET).stacksTo(1)));
+
+    public static DeferredItem<Item> registerSimpleItem(String name) {
+        return register(name, Item::new);
+    }
+
+    // Returns new properties with creative tab set
+    public static Item.Properties props(Identifier id) {
+        return new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id));
+    }
+
+    public static <T extends Item> DeferredItem<T> register(String name, java.util.function.Function<Item.Properties, T> factory) {
+        return ITEMS.register(name, id -> factory.apply(props(id)));
+    }
+
+    // Register a block item
+    public static DeferredItem<BlockItem> registerItemBlock(DeferredBlock<? extends Block> block) {
+        return ITEMS.register(block.getId().getPath(), id -> new BlockItem(block.get(), props(id)));
+    }
+
+    // BlockItems
+    public static final DeferredItem<BlockItem> DUST = registerItemBlock(EBlocks.DUST);
+    public static final DeferredItem<BlockItem> CRUSHED_NETHERRACK = registerItemBlock(EBlocks.CRUSHED_NETHERRACK);
+    public static final DeferredItem<BlockItem> CRUSHED_END_STONE = registerItemBlock(EBlocks.CRUSHED_END_STONE);
+    public static final DeferredItem<BlockItem> CRUSHED_DEEPSLATE = registerItemBlock(EBlocks.CRUSHED_DEEPSLATE);
+    public static final DeferredItem<BlockItem> CRUSHED_BLACKSTONE = registerItemBlock(EBlocks.CRUSHED_BLACKSTONE);
+
+    // Mechanical Sieves
+    public static final DeferredItem<BlockItem> MECHANICAL_SIEVE = registerItemBlock(EBlocks.MECHANICAL_SIEVE);
+    public static final DeferredItem<BlockItem> MECHANICAL_HAMMER = registerItemBlock(EBlocks.MECHANICAL_HAMMER);
+
+    public static final DeferredItem<BlockItem> UNFIRED_PORCELAIN_CRUCIBLE = registerItemBlock(EBlocks.UNFIRED_PORCELAIN_CRUCIBLE);
+
+    public static final DeferredItem<BlockItem> END_CAKE = registerItemBlock(EBlocks.END_CAKE);
+    public static final DeferredItem<BlockItem> INFESTED_LEAVES = registerItemBlock(EBlocks.INFESTED_LEAVES);
+
+    public static final List<DeferredItem<Item>> WATERING_CANS = List.of(WOODEN_WATERING_CAN, STONE_WATERING_CAN, COPPER_WATERING_CAN, IRON_WATERING_CAN, GOLDEN_WATERING_CAN, DIAMOND_WATERING_CAN, NETHERITE_WATERING_CAN);
+
+    // Porcelain buckets that expose a fluid item storage, matching the NeoForge capability registration
+    public static final List<DeferredItem<Item>> PORCELAIN_BUCKETS = List.of(PORCELAIN_BUCKET, PORCELAIN_WATER_BUCKET, PORCELAIN_LAVA_BUCKET, PORCELAIN_MILK_BUCKET, PORCELAIN_WITCH_WATER_BUCKET);
+
+    public static void addItemsToMainTab(CreativeModeTab.Output output) {
+        for (var material : Iterables.concat(CompatUtil.getAvailableBarrels(true), CompatUtil.getAvailableSieves(true, false), CompatUtil.getAvailableCompressedSieves(true))) {
+            output.accept(material);
+        }
+
+        output.accept(MECHANICAL_SIEVE.get());
+        output.accept(MECHANICAL_HAMMER.get());
+
+        output.accept(UNFIRED_PORCELAIN_CRUCIBLE.get());
+        for (var material : Iterables.concat(CompatUtil.getAvailableLavaCrucibles(true), CompatUtil.getAvailableWaterCrucibles(true))) {
+            output.accept(material);
+        }
+
+        output.accept(DUST.get());
+        output.accept(CRUSHED_NETHERRACK.get());
+        output.accept(CRUSHED_END_STONE.get());
+        output.accept(CRUSHED_DEEPSLATE.get());
+        output.accept(CRUSHED_BLACKSTONE.get());
+
+        output.accept(ECompressedBlocks.COMPRESSED_DIRT.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_COBBLESTONE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_DIORITE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_GRANITE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_ANDESITE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_GRAVEL.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_SAND.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_DUST.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_RED_SAND.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_DEEPSLATE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_COBBLED_DEEPSLATE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_NETHERRACK.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_BLACKSTONE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_END_STONE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_CRUSHED_DEEPSLATE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_CRUSHED_BLACKSTONE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_CRUSHED_NETHERRACK.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_SOUL_SAND.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_CRUSHED_END_STONE.getItem());
+        output.accept(ECompressedBlocks.COMPRESSED_MOSS_BLOCK.getItem());
+
+        output.accept(END_CAKE.get());
+        output.accept(RANDOM_ARMOR_TRIM.get());
+        output.accept(RANDOM_POTTERY_SHERD.get());
+
+        output.accept(SILKWORM.get());
+        output.accept(COOKED_SILKWORM.get());
+        output.accept(CROOK.get());
+        output.accept(BONE_CROOK.get());
+        for (var wateringCan : WATERING_CANS) {
+            var full = WateringCanItem.getFull(wateringCan);
+            output.accept(wateringCan.get());
+            output.accept(full);
+        }
+        output.accept(STRING_MESH.get());
+        output.accept(FLINT_MESH.get());
+        output.accept(IRON_MESH.get());
+        output.accept(GOLDEN_MESH.get());
+        output.accept(DIAMOND_MESH.get());
+        output.accept(NETHERITE_MESH.get());
+        output.accept(WOODEN_HAMMER.get());
+        output.accept(STONE_HAMMER.get());
+        output.accept(GOLDEN_HAMMER.get());
+        output.accept(IRON_HAMMER.get());
+        output.accept(DIAMOND_HAMMER.get());
+        output.accept(NETHERITE_HAMMER.get());
+        output.accept(COMPRESSED_WOODEN_HAMMER.get());
+        output.accept(COMPRESSED_STONE_HAMMER.get());
+        output.accept(COMPRESSED_GOLDEN_HAMMER.get());
+        output.accept(COMPRESSED_IRON_HAMMER.get());
+        output.accept(COMPRESSED_DIAMOND_HAMMER.get());
+        output.accept(COMPRESSED_NETHERITE_HAMMER.get());
+        output.accept(IRON_ORE_CHUNK.get());
+        output.accept(COPPER_ORE_CHUNK.get());
+        output.accept(GOLD_ORE_CHUNK.get());
+
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_ALUMINUM)) output.accept(ALUMINUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_COBALT)) output.accept(COBALT_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_SILVER)) output.accept(SILVER_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_LEAD)) output.accept(LEAD_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_PLATINUM)) output.accept(PLATINUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_NICKEL)) output.accept(NICKEL_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_URANIUM)) output.accept(URANIUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_OSMIUM)) output.accept(OSMIUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_TIN)) output.accept(TIN_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_ZINC)) output.accept(ZINC_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_IRIDIUM)) output.accept(IRIDIUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_THORIUM)) output.accept(THORIUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_MAGNESIUM)) output.accept(MAGNESIUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_LITHIUM)) output.accept(LITHIUM_ORE_CHUNK.get());
+        if (!RecipeUtil.isTagEmpty(EItemTags.ORES_BORON)) output.accept(BORON_ORE_CHUNK.get());
+
+        output.accept(STONE_PEBBLE.get());
+        output.accept(DIORITE_PEBBLE.get());
+        output.accept(GRANITE_PEBBLE.get());
+        output.accept(ANDESITE_PEBBLE.get());
+        output.accept(DEEPSLATE_PEBBLE.get());
+        output.accept(TUFF_PEBBLE.get());
+        output.accept(CALCITE_PEBBLE.get());
+        output.accept(BLACKSTONE_PEBBLE.get());
+        output.accept(BASALT_PEBBLE.get());
+        output.accept(GRASS_SEEDS.get());
+        output.accept(MYCELIUM_SPORES.get());
+        output.accept(WARPED_NYLIUM_SPORES.get());
+        output.accept(CRIMSON_NYLIUM_SPORES.get());
+        output.accept(SCULK_CORE.get());
+        output.accept(CREAKING_CORE.get());
+        output.accept(WOOD_CHIPPINGS.get());
+        output.accept(PORCELAIN_CLAY_BALL.get());
+        output.accept(UNFIRED_PORCELAIN_BUCKET.get());
+        output.accept(PORCELAIN_BUCKET.get());
+        output.accept(PORCELAIN_WATER_BUCKET.get());
+        output.accept(PORCELAIN_LAVA_BUCKET.get());
+        output.accept(PORCELAIN_MILK_BUCKET.get());
+        output.accept(PORCELAIN_WITCH_WATER_BUCKET.get());
+        output.accept(WITCH_WATER_BUCKET.get());
+    }
+}

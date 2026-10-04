@@ -1,0 +1,19 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["blue_skies"] }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "I": "#c:rods/wooden",
+    "O": "blue_skies:frostbright_planks",
+    "_": "blue_skies:frostbright_slab"
+  },
+  "pattern": [
+    "O O",
+    "O_O",
+    "I I"
+  ],
+  "result": {
+    "id": "exdeorum:frostbright_sieve"
+  }
+}

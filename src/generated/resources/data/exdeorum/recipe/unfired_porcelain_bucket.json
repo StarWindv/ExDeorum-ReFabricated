@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "#": "exdeorum:porcelain_clay_ball"
+  },
+  "pattern": [
+    "# #",
+    " # "
+  ],
+  "result": {
+    "id": "exdeorum:unfired_porcelain_bucket"
+  }
+}

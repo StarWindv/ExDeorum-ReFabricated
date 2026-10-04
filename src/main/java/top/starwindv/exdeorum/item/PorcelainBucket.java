@@ -1,0 +1,217 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.item;
+
+import net.minecraft.advancements.triggers.CriteriaTriggers;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.stats.Stats;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.cow.Cow;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.BucketPickup;
+import net.minecraft.world.level.block.LiquidBlockContainer;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.material.FlowingFluid;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import top.starwindv.exdeorum.fluid.FluidStack;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import top.starwindv.exdeorum.registry.EFluids;
+import top.starwindv.exdeorum.registry.EItems;
+
+import java.util.function.Supplier;
+
+public class PorcelainBucket extends Item {
+    private final Supplier<? extends Fluid> fluid;
+
+    public PorcelainBucket(Supplier<? extends Fluid> fluid, Properties properties) {
+        super(properties);
+        this.fluid = fluid;
+    }
+
+    @Override
+    public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity target, InteractionHand hand) {
+        if (target instanceof Cow) {
+            if (!target.isBaby()) {
+                var level = player.level();
+                player.playSound(SoundEvents.COW_MILK, 1.0f, 1.0f);
+                if (!level.isClientSide()) {
+                    // have to make a copy to prevent player voiding the item stack in line 1056
+                    // when it calls interactLivingEntity and checks if the stack is empty afterwards
+                    var result = ItemUtils.createFilledResult(stack.getCount() == 1 ? stack.copy() : stack, player, new ItemStack(EItems.PORCELAIN_MILK_BUCKET.get()));
+                    player.setItemInHand(hand, result);
+                }
+                return level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;
+            }
+        }
+
+        return InteractionResult.PASS;
+    }
+
+    public InteractionResult use(Level level, Player player, InteractionHand pHand) {
+        var stack = player.getItemInHand(pHand);
+        var hitResult = getPlayerPOVHitResult(level, player, this.fluid.get() == Fluids.EMPTY ? ClipContext.Fluid.SOURCE_ONLY : ClipContext.Fluid.NONE);
+        if (hitResult.getType() == HitResult.Type.MISS) {
+            return InteractionResult.PASS;
+        } else if (hitResult.getType() != HitResult.Type.BLOCK) {
+            return InteractionResult.PASS;
+        } else {
+            var pos = hitResult.getBlockPos();
+            var face = hitResult.getDirection();
+            var relative = pos.relative(face);
+            if (level.mayInteract(player, pos) && player.mayUseItemAt(relative, face, stack)) {
+                if (this.fluid.get() == Fluids.EMPTY) {
+                    var state = level.getBlockState(pos);
+                    var fluidType = state.getFluidState().getType();
+
+                    if (fluidType == Fluids.WATER || fluidType == Fluids.LAVA || fluidType == EFluids.WITCH_WATER.get()) {
+                        if (state.getBlock() instanceof BucketPickup pickup) {
+                            var result = pickup.pickupBlock(player, level, pos, state);
+
+                            if (fluidType == Fluids.WATER) {
+                                result = new ItemStack(EItems.PORCELAIN_WATER_BUCKET.get());
+                            } else if (fluidType == Fluids.LAVA) {
+                                result = new ItemStack(EItems.PORCELAIN_LAVA_BUCKET.get());
+                            } else {
+                                result = new ItemStack(EItems.PORCELAIN_WITCH_WATER_BUCKET.get());
+                            }
+
+                            if (!result.isEmpty()) {
+                                player.awardStat(Stats.ITEM_USED.get(this));
+                                pickup.getPickupSound().ifPresent(sound -> player.playSound(sound, 1.0F, 1.0F));
+                                level.gameEvent(player, GameEvent.FLUID_PICKUP, pos);
+                                var filled = ItemUtils.createFilledResult(stack, player, result);
+                                if (!level.isClientSide()) {
+                                    CriteriaTriggers.FILLED_BUCKET.trigger((ServerPlayer) player, result);
+                                }
+
+                                var success = level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;
+                                return success.heldItemTransformedTo(filled);
+                            }
+                        }
+                    }
+
+                    return InteractionResult.FAIL;
+                } else {
+                    var state = level.getBlockState(pos);
+                    var placePos = canBlockContainFluid(player, level, pos, state) ? pos : relative;
+
+                    if (emptyContents(player, level, placePos, hitResult, stack)) {
+                        if (player instanceof ServerPlayer serverPlayer) {
+                            CriteriaTriggers.PLACED_BLOCK.trigger(serverPlayer, placePos, stack);
+                        }
+
+                        player.awardStat(Stats.ITEM_USED.get(this));
+                        var success = level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;
+                        return success.heldItemTransformedTo(getEmptySuccessItem(stack, player));
+                    } else {
+                        return InteractionResult.FAIL;
+                    }
+                }
+            } else {
+                return InteractionResult.FAIL;
+            }
+        }
+    }
+
+    private ItemStack getEmptySuccessItem(ItemStack stack, Player player) {
+        if (!player.getAbilities().instabuild) {
+            if (this.fluid.get() == Fluids.LAVA) {
+                return ItemStack.EMPTY;
+            } else {
+                return new ItemStack(EItems.PORCELAIN_BUCKET.get());
+            }
+        } else {
+            return stack;
+        }
+    }
+
+    public boolean emptyContents(@Nullable Player player, Level level, BlockPos pos, @Nullable BlockHitResult hitResult, @Nullable ItemStack container) {
+        if (!(this.fluid.get() instanceof FlowingFluid)) {
+            return false;
+        } else {
+            var state = level.getBlockState(pos);
+            var block = state.getBlock();
+            var replacing = state.canBeReplaced(this.fluid.get());
+            var canPlaceAtPos = state.isAir() || replacing || block instanceof LiquidBlockContainer liquidContainer && liquidContainer.canPlaceLiquid(player, level, pos, state, this.fluid.get());
+            if (!canPlaceAtPos) {
+                return hitResult != null && this.emptyContents(player, level, hitResult.getBlockPos().relative(hitResult.getDirection()), null, container);
+            } else if (level.dimension() == Level.NETHER && this.fluid.get().is(FluidTags.WATER)) {
+                var i = pos.getX();
+                var j = pos.getY();
+                var k = pos.getZ();
+                level.playSound(player, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.5F, 2.6F + (level.getRandom().nextFloat() - level.getRandom().nextFloat()) * 0.8F);
+
+                for (int l = 0; l < 8; ++l) {
+                    level.addParticle(ParticleTypes.LARGE_SMOKE, i + Math.random(), j + Math.random(), k + Math.random(), 0, 0, 0);
+                }
+
+                return true;
+            } else if (block instanceof LiquidBlockContainer liquidContainer && liquidContainer.canPlaceLiquid(player, level, pos, state, this.fluid.get())) {
+                liquidContainer.placeLiquid(level, pos, state, ((FlowingFluid) this.fluid.get()).getSource(false));
+                playEmptySound(player, level, pos);
+                return true;
+            } else {
+                if (!level.isClientSide() && replacing && !state.liquid()) {
+                    level.destroyBlock(pos, true);
+                }
+
+                if (!level.setBlock(pos, this.fluid.get().defaultFluidState().createLegacyBlock(), 11) && !state.getFluidState().isSource()) {
+                    return false;
+                } else {
+                    playEmptySound(player, level, pos);
+                    return true;
+                }
+            }
+        }
+    }
+
+    protected void playEmptySound(@Nullable Player pPlayer, LevelAccessor pLevel, BlockPos pPos) {
+        var sound = this.fluid.get().is(FluidTags.LAVA) ? SoundEvents.BUCKET_EMPTY_LAVA : SoundEvents.BUCKET_EMPTY;
+        pLevel.playSound(pPlayer, pPos, sound, SoundSource.BLOCKS, 1.0F, 1.0F);
+        pLevel.gameEvent(pPlayer, GameEvent.FLUID_PLACE, pPos);
+    }
+
+    protected boolean canBlockContainFluid(Player player, Level level, BlockPos pos, BlockState state) {
+        return state.getBlock() instanceof LiquidBlockContainer block && block.canPlaceLiquid(player, level, pos, state, this.fluid.get());
+    }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smelting",
+  "experience": 0.1,
+  "ingredient": "exdeorum:unfired_porcelain_crucible",
+  "result": {
+    "id": "exdeorum:porcelain_crucible"
+  }
+}

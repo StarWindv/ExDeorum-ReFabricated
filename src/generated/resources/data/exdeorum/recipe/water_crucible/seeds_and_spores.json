@@ -1,0 +1,13 @@
+{
+  "type": "exdeorum:water_crucible",
+  "fluid": {
+    "amount": 50,
+    "id": "minecraft:water"
+  },
+  "ingredient": [
+    "exdeorum:grass_seeds",
+    "exdeorum:mycelium_spores",
+    "exdeorum:warped_nylium_spores",
+    "exdeorum:crimson_nylium_spores"
+  ]
+}

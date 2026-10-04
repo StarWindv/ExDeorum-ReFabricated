@@ -1,0 +1,15 @@
+{
+  "variants": {
+    "": {
+      "fabric:type": "fabric:composite",
+      "models": [
+        {
+          "model": "minecraft:block/cobbled_deepslate"
+        },
+        {
+          "model": "exdeorum:block/compressed_overlay"
+        }
+      ]
+    }
+  }
+}

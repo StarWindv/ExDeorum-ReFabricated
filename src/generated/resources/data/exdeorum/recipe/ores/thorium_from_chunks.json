@@ -1,0 +1,8 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/thorium"] }
+  ],
+  "type": "exdeorum:ore_chunk",
+  "ore": "c:ores/thorium",
+  "ore_chunk": "exdeorum:thorium_ore_chunk"
+}

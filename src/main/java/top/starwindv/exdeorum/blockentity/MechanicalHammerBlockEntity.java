@@ -1,0 +1,271 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.blockentity;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.level.storage.loot.LootContext;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import top.starwindv.exdeorum.block.MechanicalHammerBlock;
+import top.starwindv.exdeorum.blockentity.helper.ItemHelper;
+import top.starwindv.exdeorum.config.EConfig;
+import top.starwindv.exdeorum.util.TranslationKeys;
+import top.starwindv.exdeorum.loot.HammerLootModifier;
+import top.starwindv.exdeorum.menu.MechanicalHammerMenu;
+import top.starwindv.exdeorum.recipe.RecipeUtil;
+import top.starwindv.exdeorum.recipe.hammer.HammerRecipe;
+import top.starwindv.exdeorum.registry.EBlockEntities;
+import top.starwindv.exdeorum.tag.EItemTags;
+
+public class MechanicalHammerBlockEntity extends AbstractMachineBlockEntity<MechanicalHammerBlockEntity> {
+    private static final Component TITLE = Component.translatable(TranslationKeys.MECHANICAL_HAMMER_SCREEN_TITLE);
+    private static final int INPUT_SLOT = 0;
+    public static final int HAMMER_SLOT = 1;
+    private static final int OUTPUT_SLOT = 2;
+    public static final int TOTAL_PROGRESS = 10_000_000;
+    // process should take 200 ticks or 10 seconds with no efficiency
+    private static final int PROGRESS_INTERVAL = TOTAL_PROGRESS / 200;
+    public static final int NOT_RUNNING = -1;
+
+    // an integer from 0 to 10,000,000 instead of a decimal number which is inaccurate and buggy
+    private int progress = NOT_RUNNING;
+    private float efficiency;
+
+    public MechanicalHammerBlockEntity(BlockPos pos, BlockState state) {
+        super(EBlockEntities.MECHANICAL_HAMMER.get(), pos, state, ItemHandler::new, EConfig.SERVER.mechanicalHammerEnergyStorage.get());
+    }
+
+    public static boolean isValidInput(ItemStack stack) {
+        return RecipeUtil.getHammerRecipe(stack.getItem()) != null;
+    }
+
+    @Override
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+
+        output.putInt("progress", this.progress);
+    }
+
+    @Override
+    public void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+
+        this.progress = input.getIntOr("progress", NOT_RUNNING);
+        onHammerChanged(input.lookup());
+    }
+
+    @Override
+    public Component getDisplayName() {
+        return TITLE;
+    }
+
+    @Override
+    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player pPlayer) {
+        return new MechanicalHammerMenu(containerId, playerInventory, this);
+    }
+
+    @Override
+    protected boolean isRunning() {
+        return this.progress != NOT_RUNNING;
+    }
+
+    @Override
+    protected void tryStartRunning() {
+        var input = this.inventory.getStackInSlot(INPUT_SLOT);
+
+        if (!input.isEmpty()) {
+            if (canFitResultIntoOutput(input) != null) {
+                this.progress = 0;
+                this.level.setBlock(this.worldPosition, getBlockState().setValue(MechanicalHammerBlock.RUNNING, true), 3);
+
+                return;
+            }
+        }
+
+        if (getBlockState().getValue(MechanicalHammerBlock.RUNNING)) {
+            this.level.setBlock(this.worldPosition, getBlockState().setValue(MechanicalHammerBlock.RUNNING, false), 3);
+        }
+    }
+
+    @Override
+    protected void noEnergyTick() {
+        if (getBlockState().getValue(MechanicalHammerBlock.RUNNING)) {
+            this.level.setBlock(this.worldPosition, getBlockState().setValue(MechanicalHammerBlock.RUNNING, false), 3);
+        }
+    }
+
+    @Nullable
+    private HammerRecipe canFitResultIntoOutput(ItemStack input) {
+        var output = this.inventory.getStackInSlot(OUTPUT_SLOT);
+
+        if (output.isEmpty() || output.getCount() < output.getMaxStackSize()) {
+            var recipe = RecipeUtil.getHammerRecipe(input.getItem());
+
+            if (recipe != null && (output.isEmpty() || ItemStack.isSameItemSameComponents(recipe.result.create(), output))) {
+                return recipe;
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    protected void runMachineTick() {
+        var input = this.inventory.getStackInSlot(INPUT_SLOT);
+
+        if (!input.isEmpty()) {
+            this.progress += (int) (PROGRESS_INTERVAL * this.efficiency);
+
+            if (this.progress >= TOTAL_PROGRESS) {
+                var recipe = canFitResultIntoOutput(input);
+
+                if (recipe != null) {
+                    @SuppressWarnings("DataFlowIssue")
+                    LootContext ctx = RecipeUtil.emptyLootContext((ServerLevel) this.level);
+                    var resultCount = recipe.resultAmount.getInt(ctx);
+                    if (!input.is(EItemTags.HAMMER_FORTUNE_BLACKLIST)) {
+                        resultCount += HammerLootModifier.calculateFortuneBonus(this.level.registryAccess(), this.inventory.getStackInSlot(HAMMER_SLOT), ctx.getRandom(), resultCount == 0);
+                    }
+                    var output = this.inventory.getStackInSlot(OUTPUT_SLOT);
+                    if (output.isEmpty()) {
+                        this.inventory.setStackInSlot(OUTPUT_SLOT, recipe.result.withCount(resultCount).create());
+                    } else {
+                        output.setCount(Math.min(output.getMaxStackSize(), resultCount + output.getCount()));
+                    }
+                    input.shrink(1);
+                    damageHammer();
+
+                    setChanged();
+                }
+
+                this.progress = NOT_RUNNING;
+            }
+        } else {
+            this.level.setBlock(this.worldPosition, this.getBlockState().setValue(MechanicalHammerBlock.RUNNING, false), 3);
+        }
+    }
+
+    private void damageHammer() {
+        var hammer = this.inventory.getStackInSlot(HAMMER_SLOT);
+
+        if (hammer.isDamageableItem()) {
+            hammer.hurtAndBreak(1, (ServerLevel) this.level, null, item -> {
+                if (hammer.isEmpty()) {
+                    this.inventory.setStackInSlot(HAMMER_SLOT, ItemStack.EMPTY);
+                }
+            });
+        }
+    }
+
+    private void onHammerChanged(HolderLookup.Provider registries) {
+        var hammer = this.inventory.getStackInSlot(HAMMER_SLOT);
+        if (hammer.isEmpty()) {
+            this.efficiency = 1f;
+        } else {
+            // This timing allows full efficiency hammer to match full efficiency sieve (55 ticks/craft
+            // Rewards player for using hammer by doubling speed right off the bat, before efficiency
+            // although not as fast as Mekanism's crusher, still pretty fast and much cheaper
+            this.efficiency = 2f + EnchantmentHelper.getItemEnchantmentLevel(registries.lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.EFFICIENCY), hammer) * 0.33f;
+        }
+    }
+
+    @Override
+    protected int getEnergyConsumption() {
+        return EConfig.SERVER.mechanicalHammerEnergyConsumption.get();
+    }
+
+    // The value synced to the client for rendering the arrow in GUI
+    public int getGuiProgress() {
+        return Math.round((float)(24 * this.progress) / TOTAL_PROGRESS);
+    }
+
+    public void setGuiProgress(int guiProgress) {
+        this.progress = (guiProgress * TOTAL_PROGRESS) / 24;
+    }
+
+    public int getProgress() {
+        return this.progress;
+    }
+
+    public void setProgress(int progress) {
+        this.progress = progress;
+    }
+
+    private static class ItemHandler extends ItemHelper {
+        private final MechanicalHammerBlockEntity hammer;
+
+        public ItemHandler(MechanicalHammerBlockEntity hammer) {
+            super(3);
+            this.hammer = hammer;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+            if (slot == INPUT_SLOT) {
+                return RecipeUtil.getHammerRecipe(stack.getItem()) != null;
+            } else if (slot == HAMMER_SLOT) {
+                return stack.is(EItemTags.HAMMERS);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return slot == HAMMER_SLOT ? 1 : super.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean canMachineExtract(int slot) {
+            return slot == OUTPUT_SLOT;
+        }
+
+        @Override
+        protected void onContentsChanged(int slot) {
+            if (slot == HAMMER_SLOT) {
+                this.hammer.onHammerChanged(this.hammer.level.registryAccess());
+            } else if (slot == INPUT_SLOT) {
+                if (getStackInSlot(INPUT_SLOT).isEmpty()) {
+                    this.hammer.progress = NOT_RUNNING;
+                }
+            }
+        }
+    }
+}

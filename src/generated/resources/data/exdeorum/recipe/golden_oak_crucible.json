@@ -1,0 +1,18 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["aether"] }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "m": "aether:skyroot_slab",
+    "s": "aether:golden_oak_log"
+  },
+  "pattern": [
+    "s s",
+    "s s",
+    "sms"
+  ],
+  "result": {
+    "id": "exdeorum:golden_oak_crucible"
+  }
+}

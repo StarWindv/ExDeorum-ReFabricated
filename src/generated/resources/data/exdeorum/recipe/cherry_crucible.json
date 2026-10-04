@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "m": "minecraft:cherry_slab",
+    "s": "minecraft:cherry_log"
+  },
+  "pattern": [
+    "s s",
+    "s s",
+    "sms"
+  ],
+  "result": {
+    "id": "exdeorum:cherry_crucible"
+  }
+}

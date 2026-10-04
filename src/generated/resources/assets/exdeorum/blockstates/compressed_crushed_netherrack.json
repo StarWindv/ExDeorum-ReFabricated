@@ -1,0 +1,15 @@
+{
+  "variants": {
+    "": {
+      "fabric:type": "fabric:composite",
+      "models": [
+        {
+          "model": "exdeorum:block/crushed_netherrack"
+        },
+        {
+          "model": "exdeorum:block/compressed_overlay"
+        }
+      ]
+    }
+  }
+}

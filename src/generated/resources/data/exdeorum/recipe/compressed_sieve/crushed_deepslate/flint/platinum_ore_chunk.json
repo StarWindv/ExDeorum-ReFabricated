@@ -1,0 +1,16 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/platinum"] }
+  ],
+  "type": "exdeorum:compressed_sieve",
+  "ingredient": "#exdeorum:compressed/crushed_deepslate",
+  "mesh": "exdeorum:flint_mesh",
+  "result": {
+    "id": "exdeorum:platinum_ore_chunk"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 7.0,
+    "p": 0.05
+  }
+}

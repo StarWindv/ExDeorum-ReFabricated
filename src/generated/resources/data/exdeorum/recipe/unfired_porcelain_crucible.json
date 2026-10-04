@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "m": "exdeorum:porcelain_clay_ball",
+    "s": "exdeorum:porcelain_clay_ball"
+  },
+  "pattern": [
+    "s s",
+    "s s",
+    "sms"
+  ],
+  "result": {
+    "id": "exdeorum:unfired_porcelain_crucible"
+  }
+}

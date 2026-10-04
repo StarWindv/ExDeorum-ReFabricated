@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:barrel_compost",
+  "ingredient": [
+    "minecraft:salmon",
+    "minecraft:cooked_salmon"
+  ],
+  "volume": 125
+}

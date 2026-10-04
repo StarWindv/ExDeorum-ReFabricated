@@ -1,0 +1,13 @@
+{
+  "type": "exdeorum:sieve",
+  "ingredient": "exdeorum:dust",
+  "mesh": "exdeorum:golden_mesh",
+  "result": {
+    "id": "minecraft:blaze_powder"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.06
+  }
+}

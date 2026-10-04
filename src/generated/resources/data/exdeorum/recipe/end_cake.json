@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "C": "exdeorum:crushed_end_stone",
+    "E": "#c:eggs",
+    "P": "minecraft:ender_eye",
+    "S": "minecraft:sugar"
+  },
+  "pattern": [
+    "PPP",
+    "SES",
+    "CCC"
+  ],
+  "result": {
+    "id": "exdeorum:end_cake"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:compressed_hammer",
+  "ingredient": "#exdeorum:compressed_hammer/gravel",
+  "result": {
+    "id": "minecraft:gravel"
+  },
+  "result_amount": 9.0
+}

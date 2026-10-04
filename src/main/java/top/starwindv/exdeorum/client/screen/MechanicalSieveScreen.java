@@ -1,0 +1,95 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.client.screen;
+
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+import org.jetbrains.annotations.Nullable;
+import top.starwindv.exdeorum.ExDeorum;
+import top.starwindv.exdeorum.config.EConfig;
+import top.starwindv.exdeorum.util.TranslationKeys;
+import top.starwindv.exdeorum.menu.MechanicalSieveMenu;
+
+public class MechanicalSieveScreen extends AbstractContainerScreen<MechanicalSieveMenu> {
+    private static final Identifier BACKGROUND_TEXTURE = ExDeorum.loc("textures/gui/container/mechanical_sieve.png");
+
+    // Used by JEI and REI, these are bounds of the little grains texture between the mesh/input and the output slots
+    public static final int RECIPE_CLICK_AREA_POS_X = 51;
+    public static final int RECIPE_CLICK_AREA_POS_Y = 42;
+    public static final int RECIPE_CLICK_AREA_WIDTH = 21;
+    public static final int RECIPE_CLICK_AREA_HEIGHT = 14;
+
+    @Nullable
+    private RedstoneControlWidget redstoneControlWidget;
+
+    public MechanicalSieveScreen(MechanicalSieveMenu menu, Inventory playerInventory, Component title) {
+        super(menu, playerInventory, title, 176, 173);
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+
+        this.redstoneControlWidget = new RedstoneControlWidget(this.menu, BACKGROUND_TEXTURE, this.leftPos + this.imageWidth, this.topPos + 3);
+        addRenderableWidget(this.redstoneControlWidget);
+    }
+
+    @Nullable
+    public RedstoneControlWidget getRedstoneControlWidget() {
+        return this.redstoneControlWidget;
+    }
+
+    @Override
+    public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        int left = this.leftPos;
+        int top = this.topPos;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND_TEXTURE, left, top, 0, 0, this.imageWidth, this.imageHeight, 256, 256);
+
+        // energy bar
+        int energy = Mth.floor(54 * ((float) this.menu.prevEnergy / EConfig.SERVER.mechanicalSieveEnergyStorage.get()));
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND_TEXTURE, left + 10, top + 22 + 54 - energy, this.imageWidth, 14 + 54 - energy, 12, energy, 256, 256);
+
+        // progress arrow
+        int progress = Math.min(21, (int) (this.menu.machine.getLogic().getProgress() * 22));
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND_TEXTURE, left + RECIPE_CLICK_AREA_POS_X, top + RECIPE_CLICK_AREA_POS_Y, this.imageWidth, 0, progress, 14, 256, 256);
+
+        super.extractContents(graphics, mouseX, mouseY, a);
+
+        int rx = mouseX - left;
+        int ry = mouseY - top;
+
+        if (9 <= rx && rx < 23 && 21 <= ry && ry < 77) {
+            var energyTooltip = Component.translatable(TranslationKeys.ENERGY).append(Component.translatable(TranslationKeys.FRACTION_DISPLAY, this.menu.prevEnergy, EConfig.SERVER.mechanicalSieveEnergyStorage.get())).append(" FE");
+            graphics.setTooltipForNextFrame(energyTooltip, mouseX, mouseY);
+        }
+
+        extractTooltip(graphics, mouseX, mouseY);
+    }
+}

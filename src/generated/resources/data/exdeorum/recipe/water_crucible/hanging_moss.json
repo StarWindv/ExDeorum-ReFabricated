@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:water_crucible",
+  "fluid": {
+    "amount": 100,
+    "id": "minecraft:water"
+  },
+  "ingredient": "minecraft:pale_hanging_moss"
+}

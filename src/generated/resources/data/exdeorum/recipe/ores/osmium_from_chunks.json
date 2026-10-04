@@ -1,0 +1,8 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/osmium"] }
+  ],
+  "type": "exdeorum:ore_chunk",
+  "ore": "c:ores/osmium",
+  "ore_chunk": "exdeorum:osmium_ore_chunk"
+}

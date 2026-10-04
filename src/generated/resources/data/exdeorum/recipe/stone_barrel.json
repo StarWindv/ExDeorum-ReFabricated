@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "m": "minecraft:stone_slab",
+    "s": "minecraft:stone"
+  },
+  "pattern": [
+    "s s",
+    "s s",
+    "sms"
+  ],
+  "result": {
+    "id": "exdeorum:stone_barrel"
+  }
+}

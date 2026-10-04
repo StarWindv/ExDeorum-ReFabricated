@@ -1,0 +1,15 @@
+{
+  "model": {
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "minecraft:block/end_stone"
+      },
+      {
+        "type": "minecraft:model",
+        "model": "exdeorum:block/compressed_overlay"
+      }
+    ]
+  }
+}

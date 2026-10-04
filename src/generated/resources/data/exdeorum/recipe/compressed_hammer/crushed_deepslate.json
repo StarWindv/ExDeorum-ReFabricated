@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:compressed_hammer",
+  "ingredient": "#exdeorum:compressed_hammer/deepslate",
+  "result": {
+    "id": "exdeorum:crushed_deepslate"
+  },
+  "result_amount": 9.0
+}

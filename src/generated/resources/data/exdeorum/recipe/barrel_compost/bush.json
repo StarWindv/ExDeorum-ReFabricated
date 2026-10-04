@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:barrel_compost",
+  "ingredient": [
+    "minecraft:bush",
+    "minecraft:firefly_bush"
+  ],
+  "volume": 100
+}

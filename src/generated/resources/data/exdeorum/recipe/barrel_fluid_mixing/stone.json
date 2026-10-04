@@ -1,0 +1,11 @@
+{
+  "type": "exdeorum:barrel_fluid_mixing",
+  "additive_fluid": "minecraft:lava",
+  "base_fluid": {
+    "amount": 1000,
+    "ingredient": "minecraft:water"
+  },
+  "result": {
+    "id": "minecraft:stone"
+  }
+}

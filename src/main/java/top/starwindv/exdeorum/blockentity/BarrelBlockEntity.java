@@ -1,0 +1,723 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.blockentity;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.BucketPickup;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FlowingFluid;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import top.starwindv.exdeorum.fluid.FluidAction;
+import top.starwindv.exdeorum.fluid.FluidStack;
+import top.starwindv.exdeorum.blockentity.helper.FluidTank;
+import top.starwindv.exdeorum.blockentity.helper.ItemStackHandler;
+import top.starwindv.exdeorum.transfer.FluidTankStorage;
+import org.jetbrains.annotations.Nullable;
+import top.starwindv.exdeorum.block.BarrelBlock;
+import top.starwindv.exdeorum.blockentity.helper.FluidHelper;
+import top.starwindv.exdeorum.client.CompostColors;
+import top.starwindv.exdeorum.config.EConfig;
+import top.starwindv.exdeorum.material.BarrelMaterial;
+import top.starwindv.exdeorum.recipe.RecipeUtil;
+import top.starwindv.exdeorum.recipe.barrel.BarrelFluidMixingRecipe;
+import top.starwindv.exdeorum.recipe.barrel.FluidTransformationRecipe;
+import top.starwindv.exdeorum.registry.EBlockEntities;
+import top.starwindv.exdeorum.registry.ESounds;
+
+public class BarrelBlockEntity extends ETankBlockEntity {
+    private static final int MOSS_SPREAD_RANGE = 2;
+    private static final int MAX_CAPACITY = 1000;
+
+    private final BarrelBlockEntity.ItemHandler item = new BarrelBlockEntity.ItemHandler();
+    private final BarrelBlockEntity.FluidHandler tank = new BarrelBlockEntity.FluidHandler();
+    public float progress;
+    public short compost;
+    // compost colors (has to be shorts because Java bytes are signed and only go to 127, when need 255)
+    // also used for fluid transformation (destination color)
+    public short r, g, b;
+    // Used to avoid triggering obsidian dupes in onContentsChanged, because Forge's FluidUtil actually modifies the tank for some reason
+    private boolean isBeingFilledByPlayer;
+    // Re-entrancy guard for tryInWorldFluidMixing, which is reached from itself via onContentsChanged
+    private boolean mixingWorldFluid;
+    public final boolean transparent;
+    // Current transformation recipe
+    @Nullable
+    public FluidTransformationRecipe currentTransformRecipe = null;
+
+    public BarrelBlockEntity(BlockPos pos, BlockState state) {
+        super(EBlockEntities.BARREL.get(), pos, state);
+
+        this.transparent = BarrelMaterial.TRANSPARENT_BARRELS.contains(state.getBlock());
+    }
+
+    @Override
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+
+        this.item.serialize(output.child("item"));
+        this.tank.serialize(output.child("tank"));
+        output.putShort("compost", this.compost);
+        output.putFloat("progress", this.progress);
+        output.putShort("r", this.r);
+        output.putShort("g", this.g);
+        output.putShort("b", this.b);
+    }
+
+    @Override
+    public void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+
+        this.item.deserialize(input.childOrEmpty("item"));
+        this.tank.deserialize(input.childOrEmpty("tank"));
+        this.compost = (short) input.getShortOr("compost", (short) 0);
+        this.progress = input.getFloatOr("progress", 0f);
+        this.r = (short) input.getShortOr("r", (short) 0);
+        this.g = (short) input.getShortOr("g", (short) 0);
+        this.b = (short) input.getShortOr("b", (short) 0);
+    }
+
+    @Override
+    public void writeVisualData(RegistryFriendlyByteBuf buffer) {
+        ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, this.item.getStackInSlot(0));
+        FluidStack.OPTIONAL_STREAM_CODEC.encode(buffer, this.tank.getFluid());
+        buffer.writeShort(this.compost);
+        buffer.writeFloat(this.progress);
+        buffer.writeShort(this.r);
+        buffer.writeShort(this.g);
+        buffer.writeShort(this.b);
+    }
+
+    @Override
+    public void readVisualData(RegistryFriendlyByteBuf buffer) {
+        this.item.setStackInSlot(0, ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
+        this.tank.setFluid(FluidStack.OPTIONAL_STREAM_CODEC.decode(buffer));
+        this.compost = buffer.readShort();
+        this.progress = buffer.readFloat();
+        this.r = buffer.readShort();
+        this.g = buffer.readShort();
+        this.b = buffer.readShort();
+    }
+
+    @Override
+    public void copyVisualData(BlockEntity fromIntegratedServer) {
+        if (fromIntegratedServer instanceof BarrelBlockEntity from) {
+            this.item.setStackInSlot(0, from.item.getStackInSlot(0).copy());
+            this.tank.setFluid(from.tank.getFluid().copy());
+            this.compost = from.compost;
+            this.progress = from.progress;
+            this.r = from.r;
+            this.g = from.g;
+            this.b = from.b;
+        }
+    }
+
+    public boolean isBrewing() {
+        return this.tank.getFluidAmount() == MAX_CAPACITY && this.progress != 0.0f && !isBurning();
+    }
+
+    public boolean isBurning() {
+        return this.getBlockState().ignitedByLava() && isHotFluid(this.tank.getFluid().getFluid()) && this.progress != 0.0f;
+    }
+
+    // Composting is in progress if at 1000. When finished, compost is set back to 0
+    public boolean isComposting() {
+        return this.compost == MAX_CAPACITY;
+    }
+
+    // Returns true if there are no solid ingredients (can a fluid be inserted?)
+    public boolean hasNoSolids() {
+        return this.compost <= 0 && this.item.getStackInSlot(0).isEmpty();
+    }
+
+    @SuppressWarnings("deprecation")
+    public boolean hasFullWater() {
+        return this.tank.getFluidAmount() == MAX_CAPACITY && this.tank.getFluid().getFluid().is(FluidTags.WATER);
+    }
+
+    // Burning temp of wood according to google is 300 C or ~575 kelvin.
+    // NeoForge checked the fluid type temperature; on Fabric only lava qualifies.
+    public static boolean isHotFluid(Fluid fluid) {
+        return fluid.is(FluidTags.LAVA);
+    }
+
+    private void spawnParticlesIfBurning(Level level) {
+        if (isBurning()) {
+            BlockPos pos = getBlockPos();
+            int burnTicks = (int) (this.progress * 300);
+
+            if (burnTicks % 30 == 0) {
+                level.addParticle(ParticleTypes.LARGE_SMOKE, pos.getX() + Math.random(), pos.getY() + 1.2, pos.getZ() + Math.random(), 0.0, 0.0, 0.0);
+            } else if (burnTicks % 5 == 0) {
+                level.addParticle(ParticleTypes.SMOKE, pos.getX() + Math.random(), pos.getY() + 1.2, pos.getZ() + Math.random(), 0.0, 0.0, 0.0);
+            }
+        }
+    }
+
+    public ItemStack getItem() {
+        return this.item.getStackInSlot(0);
+    }
+
+    private void setItem(ItemStack item) {
+        this.item.setStackInSlot(0, item);
+    }
+
+    @Override
+    public FluidTank getTank() {
+        return this.tank;
+    }
+
+    @Override
+    public InteractionResult useItemOn(Level level, Player player, ItemStack stack, InteractionHand hand) {
+        // Collect an item
+        if (!getItem().isEmpty()) {
+            return giveResultItem(level);
+        }
+
+        // Handle item fluid interaction first
+        if (hasNoSolids()) {
+            var wasBurning = isBurning();
+
+            this.isBeingFilledByPlayer = true;
+
+            if (FluidStorageUtil.interactWithFluidStorage(new FluidTankStorage(this.tank), player, hand)) {
+                this.isBeingFilledByPlayer = false;
+                tryInWorldFluidMixing();
+                markUpdated();
+
+                // If the item is a fluid handler, try to transfer fluids
+                if (wasBurning && !isHotFluid(this.tank.getFluid().getFluid())) {
+                    this.progress = 0.0f;
+                }
+
+                return InteractionResult.SUCCESS;
+            } else {
+                this.isBeingFilledByPlayer = false;
+                // try one more time to transfer fluids between item and barrel
+                var playerItem = player.getItemInHand(hand);
+                if (EConfig.SERVER.allowWaterBottleTransfer.get()) {
+                    var fluid = new FluidStack(Fluids.WATER, 250);
+
+                    if (playerItem.getItem() == Items.POTION && playerItem.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER)) {
+                        if (this.tank.fill(fluid, FluidAction.SIMULATE) > 0) {
+                            if (!player.getAbilities().instabuild) {
+                                player.setItemInHand(hand, new ItemStack(Items.GLASS_BOTTLE));
+                            }
+                            this.tank.fill(fluid, FluidAction.EXECUTE);
+                            level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BOTTLE_FILL, SoundSource.NEUTRAL, 1.0F, 1.0F);
+
+                            markUpdated();
+                            return InteractionResult.SUCCESS;
+                        }
+                    } else if (playerItem.getItem() == Items.GLASS_BOTTLE) {
+                        if (this.tank.drain(fluid, FluidAction.SIMULATE).getAmount() == 250) {
+                            extractWaterBottle(this.tank, level, player, playerItem, fluid);
+
+                            markUpdated();
+                            return InteractionResult.SUCCESS;
+                        }
+                    }
+                }
+
+                // Otherwise, mix the item's fluid into the barrel's fluid
+                var itemFluidStorage = ContainerItemContext.forPlayerInteraction(player, hand).find(FluidStorage.ITEM);
+                if (itemFluidStorage != null) {
+                    Fluid itemFluid = null;
+
+                    for (var view : itemFluidStorage) {
+                        if (!view.isResourceBlank()) {
+                            itemFluid = view.getResource().getFluid();
+                            break;
+                        }
+                    }
+
+                    BarrelFluidMixingRecipe recipe = itemFluid == null ? null : RecipeUtil.getFluidMixingRecipe(this.tank.getFluid(), itemFluid);
+
+                    // If draining item fluid was possible and tank has enough fluid to mix...
+                    if (recipe != null && this.tank.getFluidAmount() >= recipe.baseFluid().amount()) {
+                        if (!level.isClientSide()) {
+                            this.tank.drain(recipe.baseFluid().amount(), FluidAction.EXECUTE);
+                            setItem(recipe.result().create());
+
+                            if (recipe.consumesAdditive()) {
+                                try (Transaction transaction = Transaction.openOuter()) {
+                                    itemFluidStorage.extract(FluidVariant.of(itemFluid), 1000, transaction);
+                                    transaction.commit();
+                                }
+                            }
+                        }
+                        // If a mix was successful, skip rest of logic
+                        return InteractionResult.SUCCESS;
+                    }
+                }
+            }
+        }
+
+        // If the barrel has no solids and no fluid mixing/transfer happened
+        var playerItem = player.getItemInHand(hand);
+        if (!level.isClientSide()) {
+            // mix item ingredient into fluid OR turn into compost (delegated to item handler)
+            var handItem = this.item.insertItem(0, player.getAbilities().instabuild ? playerItem.copy() : playerItem, false);
+
+            if (!player.getAbilities().instabuild) {
+                player.setItemInHand(hand, handItem);
+                giveResultItem(level);
+            }
+        }
+
+        return InteractionResult.SUCCESS;
+    }
+
+    // Also used by Water Crucibles
+    protected static void extractWaterBottle(FluidTank tank, Level level, Player player, ItemStack playerItem, FluidStack fluid) {
+        if (!player.getAbilities().instabuild) {
+            playerItem.shrink(1);
+        }
+        var bottle = new ItemStack(Items.POTION);
+        bottle.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.WATER));
+        if (!player.addItem(bottle)) {
+            player.drop(bottle, false);
+        }
+        tank.drain(fluid, FluidAction.EXECUTE);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BOTTLE_EMPTY, SoundSource.NEUTRAL, 1.0F, 1.0F);
+    }
+
+    // Pops the item out of the barrel (ex. dirt that has finished composting)
+    private InteractionResult giveResultItem(Level level) {
+        if (!level.isClientSide()) {
+            popOutItem(level, this.worldPosition, this.item.extract(false));
+
+            // Empty contents
+            setItem(ItemStack.EMPTY);
+            markUpdated();
+        }
+
+        return InteractionResult.SUCCESS;
+    }
+
+    private static void popOutItem(Level level, BlockPos pos, ItemStack stack) {
+        if (!level.isClientSide() && !stack.isEmpty()) {
+            var rand = level.getRandom();
+            var itemEntity = new ItemEntity(level, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, stack);
+            itemEntity.setDeltaMovement(rand.nextGaussian() * 0.05, 0.2, rand.nextGaussian() * 0.05);
+            level.addFreshEntity(itemEntity);
+        }
+    }
+
+    /**
+     * @param input    The input item to craft with
+     * @param simulate Whether the craft should actually take place
+     * @return Whether a craft was made or is possible
+     */
+    private boolean tryCrafting(ItemStack input, boolean simulate) {
+        boolean crafted = false;
+        if (!this.tank.isEmpty()) {
+            crafted = tryMixing(input, simulate);
+        } else if (!isComposting()) {
+            crafted = tryComposting(input, simulate);
+        }
+
+        if (crafted) {
+            if (!simulate) {
+                markUpdated();
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @param playerItem The item to try to mix with this barrel's fluid
+     * @param simulate   Whether this is a test or the player is actually mixing with the barrel
+     * @return Whether something was mixed (if simulated, whether the mix is possible)
+     */
+    private boolean tryMixing(ItemStack playerItem, boolean simulate) {
+        if (isBurning()) {
+            return false;
+        }
+
+        var recipe = RecipeUtil.getBarrelMixingRecipe(playerItem, this.tank.getFluid());
+
+        if (recipe != null) {
+            if (!simulate) {
+                // Empty barrel
+                this.tank.drain(recipe.fluid.amount(), FluidAction.EXECUTE);
+                // Replace fluid with result
+                setItem(recipe.result.create());
+                this.level.playSound(null, this.worldPosition, ESounds.BARREL_MIXING.get(), SoundSource.BLOCKS, 0.8f, 1.0f);
+            }
+            // Mixing was successful, so return true
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean tryComposting(ItemStack stack, boolean simulate) {
+        if (simulate) {
+            return RecipeUtil.isCompostable(stack);
+        } else {
+            var recipe = RecipeUtil.getBarrelCompostRecipe(stack);
+            if (recipe != null) {
+                addCompost(stack, recipe.getVolume());
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    private void addCompost(ItemStack playerItem, int volume) {
+        int oldCompost = this.compost;
+        this.compost = (short) Math.min(MAX_CAPACITY, this.compost + volume);
+
+        if (this.compost != 0) {
+            if (!CompostColors.isLoaded()) {
+                CompostColors.loadColors();
+            }
+
+            float weightNew = (float) (this.compost - oldCompost) / this.compost;
+            float weightOld = 1 - weightNew;
+            var color = CompostColors.COLORS.getOrDefault(playerItem.getItem(), CompostColors.DEFAULT_COLOR);
+
+            this.r = (short) (weightNew * color.x + weightOld * this.r);
+            this.g = (short) (weightNew * color.y + weightOld * this.g);
+            this.b = (short) (weightNew * color.z + weightOld * this.b);
+        }
+
+        this.level.playSound(null, this.worldPosition, ESounds.BARREL_ADD_COMPOST.get(), SoundSource.BLOCKS);
+    }
+
+    /**
+     * Called in three cases, which should cover all the possible edge cases:
+     * <li> When the barrel is updated by a neighboring block (see {@link BarrelBlock#neighborChanged}) </li>
+     * <li> When the barrel is first loaded from NBT (see {@link #onLoad}) </li>
+     * <li> When the fluid in the barrel changes (see {@link FluidHandler#onContentsChanged()}) </li>
+     */
+    public void tryInWorldFluidMixing() {
+        // Crafting here drains the tank, which fires onContentsChanged, which calls straight
+        // back into this method. The guard turns that mutual recursion into a single pass:
+        // when the additive is not consumed the drain alone would otherwise keep re-entering
+        // until the tank ran dry, once per baseFluid().amount() of fluid.
+        if (this.mixingWorldFluid) {
+            return;
+        }
+
+        this.mixingWorldFluid = true;
+
+        try {
+            mixInWorldFluid();
+        } finally {
+            this.mixingWorldFluid = false;
+        }
+    }
+
+    private void mixInWorldFluid() {
+        if (!this.level.isClientSide()) {
+            if (!this.tank.isEmpty() && this.item.getStackInSlot(0).isEmpty()) {
+                var abovePos = this.worldPosition.above();
+                var aboveBlockState = this.level.getBlockState(abovePos);
+                var aboveFluidState = aboveBlockState.getFluidState();
+                var aboveFluid = aboveFluidState.getType();
+
+                if (aboveFluid != Fluids.EMPTY) {
+                    BarrelFluidMixingRecipe recipe = RecipeUtil.getFluidMixingRecipe(this.tank.getFluid(), aboveFluid instanceof FlowingFluid flowing ? flowing.getSource() : aboveFluid);
+
+                    if (recipe != null) {
+                        // If additive is not consumed, just craft
+                        // If additive is consumed, check that the additive can be consumed before crafting
+                        if (!recipe.consumesAdditive()) {
+                            this.tank.drain(recipe.baseFluid().amount(), FluidAction.EXECUTE);
+                            setItem(recipe.result().create());
+                        } else if (aboveBlockState.getBlock() instanceof BucketPickup pickup) {
+                            // If something was picked up, we can craft
+                            if (!pickup.pickupBlock(null, this.level, abovePos, aboveBlockState).isEmpty()) {
+                                this.tank.drain(recipe.baseFluid().amount(), FluidAction.EXECUTE);
+                                setItem(recipe.result().create());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void updateFluidTransform() {
+        if (!this.level.isClientSide()) {
+            if (this.tank.getFluidAmount() != MAX_CAPACITY) {
+                this.currentTransformRecipe = null;
+            } else {
+                var belowState = this.level.getBlockState(this.worldPosition.below());
+                this.currentTransformRecipe = RecipeUtil.getFluidTransformationRecipe(this.tank.getFluid().getFluid(), belowState);
+
+                if (this.currentTransformRecipe != null) {
+                    var color = this.currentTransformRecipe.resultColor();
+                    this.r = (short) ((color >> 16) & 0xff);
+                    this.g = (short) ((color >> 8) & 0xff);
+                    this.b = (short) ((color) & 0xff);
+                    markUpdated();
+                }
+            }
+            this.progress = 0.0f;
+        }
+    }
+
+    public ItemStackHandler getItemHandler() {
+        return this.item;
+    }
+
+    public static class Ticker implements BlockEntityTicker<BarrelBlockEntity> {
+        @Override
+        public void tick(Level level, BlockPos pos, BlockState state, BarrelBlockEntity barrel) {
+            if (!level.isClientSide()) {
+                var tank = barrel.tank;
+                // Turn compost to dirt
+                if (barrel.isComposting()) {
+                    barrel.doCompost();
+                } else if (isHotFluid(tank.getFluid().getFluid()) && state.ignitedByLava()) {
+                    if ((barrel.progress += getProgressStep()) >= 1.0f) {
+                        if (tank.getFluidAmount() == MAX_CAPACITY) {
+                            var fluid = tank.getFluid().getFluid();
+                            level.setBlockAndUpdate(pos, fluid.defaultFluidState().createLegacyBlock());
+                        } else {
+                            level.setBlockAndUpdate(pos, Blocks.FIRE.defaultBlockState());
+                        }
+                    }
+                    barrel.markUpdated();
+                } else if (barrel.currentTransformRecipe != null) {
+                    var recipe = barrel.currentTransformRecipe;
+                    var catalysts = 0;
+
+                    for (var cursor : BlockPos.betweenClosed(pos.getX() - 1, pos.getY() - 1, pos.getZ() - 1, pos.getX() + 1, pos.getY() - 1, pos.getZ() + 1)) {
+                        if (recipe.catalyst().test(level.getBlockState(cursor))) {
+                            catalysts++;
+
+                            if (!recipe.byproducts().isEmpty()) {
+                                var rand = level.getRandom();
+
+                                if (rand.nextInt(1500) == 0) {
+                                    var above = cursor.above();
+
+                                    if (level.getBlockState(above).isAir()) {
+                                        var byproduct = recipe.byproducts().getRandom(rand);
+                                        if (byproduct.canSurvive(level, above)) {
+                                            level.setBlockAndUpdate(above, byproduct);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (catalysts == 0) {
+                        barrel.currentTransformRecipe = null;
+                    } else {
+                        barrel.progress += catalysts * (1.0f / barrel.currentTransformRecipe.duration());
+
+                        if (barrel.progress >= 1.0f - Mth.EPSILON) {
+                            // Reset progress
+                            barrel.progress = 0.0f;
+                            level.playSound(null, pos, ESounds.BARREL_FLUID_TRANSFORM.get(), SoundSource.BLOCKS, 1.0f, 0.6f);
+                            tank.setFluid(FluidStack.EMPTY);
+                            tank.fill(new FluidStack(recipe.resultFluid(), 1000), FluidAction.EXECUTE);
+                        }
+                        barrel.markUpdated();
+                    }
+                } else if (EConfig.SERVER.barrelsCollectRainWater.get() && tank.getFluidAmount() < MAX_CAPACITY && level.isRainingAt(pos.above()) && barrel.item.getStackInSlot(0).isEmpty() && barrel.compost == 0) {
+                    fillRainWater(barrel, tank);
+
+                    // avoid checking fluid transform until full
+                    if (tank.getFluidAmount() == MAX_CAPACITY) {
+                        barrel.updateFluidTransform();
+                    }
+                } else if (barrel.hasFullWater()) {
+                    if (tank.getFluid().getFluid() == Fluids.WATER) {
+                        var rand = level.getRandom();
+                        // Leak water to create moss (only wooden barrels do this)
+                        if (state.ignitedByLava() && rand.nextInt(500) == 0) {
+                            var randomPos = pos.offset(rand.nextIntBetweenInclusive(-MOSS_SPREAD_RANGE, MOSS_SPREAD_RANGE), -1, rand.nextIntBetweenInclusive(-MOSS_SPREAD_RANGE, MOSS_SPREAD_RANGE));
+                            var randomBlock = level.getBlockState(randomPos).getBlock();
+
+                            if (randomBlock == Blocks.COBBLESTONE) {
+                                level.setBlock(randomPos, Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 3);
+                            } else if (randomBlock == Blocks.STONE_BRICKS) {
+                                level.setBlock(randomPos, Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), 3);
+                            }
+                        }
+                    }
+                }
+            } else {
+                barrel.spawnParticlesIfBurning(level);
+            }
+        }
+    }
+
+    public static void fillRainWater(EBlockEntity block, FluidHelper tank) {
+        if (tank.isEmpty()) {
+            tank.setFluid(new FluidStack(Fluids.WATER, 1));
+            block.markUpdated();
+        } else if (tank.getFluid().getFluid() == Fluids.WATER) {
+            tank.getFluid().grow(1);
+            block.markUpdated();
+        }
+    }
+
+    private static float getProgressStep() {
+        return EConfig.SERVER.barrelProgressStep.get().floatValue();
+    }
+
+    private void doCompost() {
+        this.progress += getProgressStep();
+        markUpdated();
+
+        if (this.progress >= 1.0f) {
+            this.progress = 0.0f;
+            this.compost = 0;
+            setItem(new ItemStack(Items.DIRT));
+            this.level.playSound(null, this.worldPosition, ESounds.BARREL_COMPOST.get(), SoundSource.BLOCKS);
+        }
+    }
+
+    private static ItemStack getRemainderItem(ItemStack stack) {
+        var useRemainder = stack.get(DataComponents.USE_REMAINDER);
+        if (useRemainder != null) {
+            return useRemainder.convertInto().create();
+        }
+
+        var craftingRemainder = stack.getItem().getCraftingRemainder();
+        return craftingRemainder != null ? craftingRemainder.create() : ItemStack.EMPTY;
+    }
+
+    @Override
+    public void onLoad() {
+        // Runs from a tick, by which point the surrounding chunk is loaded. Draining the
+        // tank below reads the block above and resolves recipes, which is not safe to do
+        // from loadAdditional or setLevel.
+        AbstractCrucibleBlockEntity.updateLight(this.level, this.worldPosition, this.tank.getFluid().getFluid());
+        tryInWorldFluidMixing();
+        updateFluidTransform();
+    }
+
+    // Inner class
+    private class ItemHandler extends ItemStackHandler {
+        @Override
+        protected int getStackLimit(int slot, ItemStack stack) {
+            return 1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return tryCrafting(stack, true);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (stack.isEmpty())
+                return ItemStack.EMPTY;
+            validateSlotIndex(slot);
+            if (!this.stacks.get(slot).isEmpty())
+                return stack;
+
+            if (tryCrafting(stack, simulate)) {
+                if (stack.getCount() == 1) {
+                    return getRemainderItem(stack);
+                } else {
+                    popOutItem(BarrelBlockEntity.this.level, BarrelBlockEntity.this.worldPosition, getRemainderItem(stack));
+                    return stack.copyWithCount(stack.getCount() - 1);
+                }
+            } else {
+                return stack;
+            }
+        }
+
+        public ItemStack extract(boolean simulate) {
+            return extractItem(0, 64, simulate);
+        }
+
+        @Override
+        protected void onContentsChanged(int slot) {
+            if (!BarrelBlockEntity.this.level.isClientSide()) {
+                markUpdated();
+            }
+        }
+    }
+
+    // Inner class
+    private class FluidHandler extends FluidHelper {
+        @Nullable
+        private Fluid lastFluid;
+
+        public FluidHandler() {
+            super(MAX_CAPACITY);
+        }
+
+        @Override
+        public boolean isFluidValid(FluidStack stack) {
+            return !isBrewing() && BarrelBlockEntity.this.hasNoSolids();
+        }
+
+        @Override
+        protected void onContentsChanged() {
+            if (!BarrelBlockEntity.this.isBeingFilledByPlayer) {
+                BarrelBlockEntity.this.tryInWorldFluidMixing();
+                BarrelBlockEntity.this.markUpdated();
+            }
+            BarrelBlockEntity.this.updateFluidTransform();
+
+            if (this.lastFluid != this.fluid.getFluid()) {
+                this.lastFluid = this.fluid.getFluid();
+                AbstractCrucibleBlockEntity.updateLight(BarrelBlockEntity.this.level, BarrelBlockEntity.this.worldPosition, this.lastFluid);
+            }
+        }
+    }
+}

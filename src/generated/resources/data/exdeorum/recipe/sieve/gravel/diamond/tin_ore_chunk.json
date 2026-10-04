@@ -1,0 +1,16 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/tin"] }
+  ],
+  "type": "exdeorum:sieve",
+  "ingredient": "minecraft:gravel",
+  "mesh": "exdeorum:diamond_mesh",
+  "result": {
+    "id": "exdeorum:tin_ore_chunk"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.11
+  }
+}

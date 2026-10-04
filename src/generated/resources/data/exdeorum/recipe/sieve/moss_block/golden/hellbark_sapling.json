@@ -1,0 +1,16 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["biomesoplenty"] }
+  ],
+  "type": "exdeorum:sieve",
+  "ingredient": "minecraft:moss_block",
+  "mesh": "exdeorum:golden_mesh",
+  "result": {
+    "id": "biomesoplenty:hellbark_sapling"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.04
+  }
+}

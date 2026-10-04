@@ -1,0 +1,16 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/cobalt"] }
+  ],
+  "type": "exdeorum:sieve",
+  "ingredient": "exdeorum:crushed_netherrack",
+  "mesh": "exdeorum:flint_mesh",
+  "result": {
+    "id": "exdeorum:cobalt_ore_chunk"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.05
+  }
+}

@@ -1,0 +1,35 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+
+# scratch logs written by scripts/gw.ps1
+logs
+
+# other
+eclipse
+run
+libs
+runs
+
+# Files from Forge MDK
+forge*changelog.txt
+*.log
+*.jar
+
+/.*/
+

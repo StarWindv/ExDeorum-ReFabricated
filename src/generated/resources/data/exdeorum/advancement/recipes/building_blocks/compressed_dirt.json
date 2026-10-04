@@ -1,0 +1,36 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:not", "value": { "condition": "fabric:all_mods_loaded", "values": ["allthecompressed"] } },
+    { "condition": "fabric:not", "value": { "condition": "fabric:all_mods_loaded", "values": ["compressium"] } }
+  ],
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_item": {
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:dirt"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "exdeorum:compressed_dirt"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_item"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "exdeorum:compressed_dirt"
+    ]
+  }
+}

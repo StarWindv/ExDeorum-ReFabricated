@@ -1,0 +1,12 @@
+{
+  "type": "exdeorum:crook",
+  "conditions": [
+    {
+      "condition": "minecraft:match_tool",
+      "predicate": {
+        "items": "#exdeorum:crooks"
+      }
+    }
+  ],
+  "priority": 1
+}

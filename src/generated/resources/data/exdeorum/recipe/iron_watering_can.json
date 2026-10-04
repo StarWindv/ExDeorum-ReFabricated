@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "#": "#c:ingots/iron",
+    "B": "minecraft:bowl"
+  },
+  "pattern": [
+    "#  ",
+    "#B#",
+    " # "
+  ],
+  "result": {
+    "id": "exdeorum:iron_watering_can"
+  }
+}

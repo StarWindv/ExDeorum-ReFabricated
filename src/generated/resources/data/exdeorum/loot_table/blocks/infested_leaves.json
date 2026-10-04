@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "entries": [],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "exdeorum:blocks/infested_leaves"
+}

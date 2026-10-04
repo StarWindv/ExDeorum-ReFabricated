@@ -1,0 +1,18 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:not", "value": { "condition": "fabric:all_mods_loaded", "values": ["allthecompressed"] } }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "#": "minecraft:deepslate"
+  },
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "result": {
+    "id": "exdeorum:compressed_deepslate"
+  }
+}

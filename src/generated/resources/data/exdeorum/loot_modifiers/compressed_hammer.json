@@ -1,0 +1,12 @@
+{
+  "type": "exdeorum:compressed_hammer",
+  "conditions": [
+    {
+      "condition": "minecraft:match_tool",
+      "predicate": {
+        "items": "#exdeorum:compressed_hammers"
+      }
+    }
+  ],
+  "priority": 1
+}

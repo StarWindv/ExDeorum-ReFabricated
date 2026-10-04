@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:compressed_hammer",
+  "ingredient": "#exdeorum:compressed/netherrack",
+  "result": {
+    "id": "exdeorum:crushed_netherrack"
+  },
+  "result_amount": 9.0
+}

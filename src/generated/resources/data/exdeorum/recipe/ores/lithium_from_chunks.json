@@ -1,0 +1,8 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/lithium"] }
+  ],
+  "type": "exdeorum:ore_chunk",
+  "ore": "c:ores/lithium",
+  "ore_chunk": "exdeorum:lithium_ore_chunk"
+}

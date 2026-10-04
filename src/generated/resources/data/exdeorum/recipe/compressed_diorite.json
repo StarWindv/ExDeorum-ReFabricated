@@ -1,0 +1,19 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:not", "value": { "condition": "fabric:all_mods_loaded", "values": ["allthecompressed"] } },
+    { "condition": "fabric:not", "value": { "condition": "fabric:all_mods_loaded", "values": ["compressium"] } }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "#": "minecraft:diorite"
+  },
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "result": {
+    "id": "exdeorum:compressed_diorite"
+  }
+}

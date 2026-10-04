@@ -1,0 +1,107 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.loot;
+
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+import org.jetbrains.annotations.NotNull;
+import top.starwindv.exdeorum.recipe.RecipeUtil;
+import top.starwindv.exdeorum.recipe.crook.CrookRecipe;
+
+import java.util.List;
+
+public class CrookLootModifier extends LootModifier {
+    public static final MapCodec<CrookLootModifier> CODEC = RecordCodecBuilder.mapCodec(inst -> LootModifier.codecStart(inst).apply(inst, CrookLootModifier::new));
+
+    public CrookLootModifier(LootItemCondition[] conditions, int priority) {
+        super(conditions, priority);
+    }
+
+    @Override
+    protected @NotNull ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
+        var state = context.getOptionalParameter(LootContextParams.BLOCK_STATE);
+        var tool = context.getOptionalParameter(LootContextParams.TOOL);
+
+        if (state != null && tool instanceof ItemStack stack) {
+            var rand = context.getRandom();
+            var enchantments = context.getLevel().holderLookup(Registries.ENCHANTMENT);
+
+            if (EnchantmentHelper.getItemEnchantmentLevel(enchantments.getOrThrow(Enchantments.SILK_TOUCH), stack) == 0) {
+                var fortune = EnchantmentHelper.getItemEnchantmentLevel(enchantments.getOrThrow(Enchantments.FORTUNE), stack);
+                var rolls = Math.max(1, Mth.ceil(fortune / 3f));
+
+                for (CrookRecipe recipe : RecipeUtil.getCrookRecipes(state)) {
+                    for (int i = 0; i < rolls; i++) {
+                        if (rand.nextFloat() < recipe.chance()) {
+                            generatedLoot.add(recipe.result().create());
+                        }
+                    }
+                }
+
+                // crook gives an additional roll for leaf drops
+                if (state.is(BlockTags.LEAVES)) {
+                    // this must not be a crook in order to avoid recursively triggering CrookLootModifier from the re roll method
+                    // copying the tag is required so that enchantments like fortune are preserved
+                    var nonCrook = new ItemStack(Items.BARRIER, 1);
+                    nonCrook.applyComponents(stack.getComponentsPatch());
+
+                    for (int i = 0; i < rolls; i++) {
+                        generatedLoot.addAll(reRollDrops(context, nonCrook, state));
+                    }
+                }
+            }
+        }
+
+        return generatedLoot;
+    }
+
+    private static List<ItemStack> reRollDrops(LootContext context, ItemStack nonCrook, BlockState state) {
+        var builder = new LootParams.Builder(context.getLevel());
+        builder.withParameter(LootContextParams.BLOCK_STATE, context.getParameter(LootContextParams.BLOCK_STATE));
+        builder.withParameter(LootContextParams.TOOL, nonCrook);
+
+        if (context.hasParameter(LootContextParams.THIS_ENTITY)) {
+            builder.withParameter(LootContextParams.THIS_ENTITY, context.getParameter(LootContextParams.THIS_ENTITY));
+        }
+        if (context.hasParameter(LootContextParams.ORIGIN)) {
+            builder.withParameter(LootContextParams.ORIGIN, context.getParameter(LootContextParams.ORIGIN));
+        }
+        return state.getDrops(builder);
+    }
+
+}

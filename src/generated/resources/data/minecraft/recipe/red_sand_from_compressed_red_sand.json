@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "exdeorum:compressed_red_sand"
+  ],
+  "result": {
+    "count": 9,
+    "id": "minecraft:red_sand"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smoking",
+  "category": "food",
+  "experience": 0.1,
+  "ingredient": "exdeorum:silkworm",
+  "result": {
+    "id": "exdeorum:cooked_silkworm"
+  }
+}

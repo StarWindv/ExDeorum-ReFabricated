@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:barrel_compost",
+  "ingredient": [
+    "minecraft:chicken",
+    "minecraft:cooked_chicken"
+  ],
+  "volume": 125
+}

@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "#": "minecraft:flint",
+    "M": "exdeorum:string_mesh"
+  },
+  "pattern": [
+    " # ",
+    "#M#",
+    " # "
+  ],
+  "result": {
+    "id": "exdeorum:flint_mesh"
+  }
+}

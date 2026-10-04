@@ -1,0 +1,104 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package top.starwindv.exdeorum.data;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.data.loot.BlockLootSubProvider;
+import net.minecraft.world.flag.FeatureFlags;
+import net.minecraft.world.level.block.Block;
+
+import net.minecraft.world.level.storage.loot.LootPool;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.entries.LootItem;
+import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+import top.starwindv.exdeorum.ExDeorum;
+import top.starwindv.exdeorum.loot.MachineLootFunction;
+import top.starwindv.exdeorum.registry.EBlocks;
+import thedarkcolour.modkit.MKUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+class BlockLoot extends BlockLootSubProvider {
+    private final List<Block> added = new ArrayList<>();
+
+    protected BlockLoot(HolderLookup.Provider provider) {
+        super(Set.of(), FeatureFlags.DEFAULT_FLAGS, provider);
+    }
+
+    @Override
+    protected void generate() {
+        MKUtils.forModRegistry(Registries.BLOCK, ExDeorum.ID, (id, block) -> {
+            if (block.getLootTable().isPresent()) {
+                dropSelf(block);
+            }
+        });
+
+        add(EBlocks.INFESTED_LEAVES.get(), noDrop().withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1))));
+
+        machineDrop(EBlocks.MECHANICAL_HAMMER.get());
+        machineDrop(EBlocks.MECHANICAL_SIEVE.get());
+    }
+
+    // see createSingleItemTable() for reference
+    private void machineDrop(Block machine) {
+        add(machine, LootTable.lootTable()
+                .withPool(applyExplosionCondition(machine, LootPool.lootPool()
+                        .setRolls(ConstantValue.exactly(1.0F))
+                        .add(LootItem.lootTableItem(machine)
+                                .apply(MachineLootFunction.machineLoot())))));
+    }
+
+    @Override
+    protected Iterable<Block> getKnownBlocks() {
+        return this.added;
+    }
+
+    @Override
+    protected void add(Block block, LootTable.Builder builder) {
+        super.add(block, builder);
+        this.added.add(block);
+    }
+}

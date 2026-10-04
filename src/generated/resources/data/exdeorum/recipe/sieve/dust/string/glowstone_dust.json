@@ -1,0 +1,13 @@
+{
+  "type": "exdeorum:sieve",
+  "ingredient": "exdeorum:dust",
+  "mesh": "exdeorum:string_mesh",
+  "result": {
+    "id": "minecraft:glowstone_dust"
+  },
+  "result_amount": {
+    "type": "minecraft:binomial",
+    "n": 1.0,
+    "p": 0.04
+  }
+}

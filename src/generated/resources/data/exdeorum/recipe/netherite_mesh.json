@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": "#c:ingots/netherite",
+  "base": "exdeorum:diamond_mesh",
+  "result": {
+    "id": "exdeorum:netherite_mesh"
+  },
+  "template": "minecraft:netherite_upgrade_smithing_template"
+}

@@ -1,0 +1,73 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package top.starwindv.exdeorum.data;
+
+import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.data.event.GatherDataEvent;
+import top.starwindv.exdeorum.ExDeorum;
+import top.starwindv.exdeorum.data.recipe.Recipes;
+import thedarkcolour.modkit.data.DataHelper;
+
+public class Data {
+    public static void generateData(GatherDataEvent.Client event) {
+        // Two things used by data generators
+        var gen = event.getGenerator(); // writes to json
+        var output = gen.getPackOutput();
+        var registries = event.getLookupProvider();
+        var dataHelper = new DataHelper(ExDeorum.ID, event);
+        dataHelper.createEnglish(true, English::addTranslations);
+        dataHelper.createBlockModels(BlockModels::addBlockModels);
+        dataHelper.createItemModels(true, true, false, ItemModels::addItemModels);
+
+        dataHelper.createRecipes(Recipes::addRecipes);
+        dataHelper.createTags(Registries.BLOCK, ModTags::createBlockTags);
+        dataHelper.createTags(Registries.ITEM, ModTags::createItemTags);
+        dataHelper.createTags(Registries.FLUID, ModTags::createFluidTags);
+
+        gen.addProvider(true, new LootTables(output, registries));
+        gen.addProvider(true, new Advancements(output, registries));
+        gen.addProvider(true, new Sounds(output));
+        gen.addProvider(true, new LootModifiers(output, registries));
+        gen.addProvider(true, new Atlases(output, registries));
+    }
+}

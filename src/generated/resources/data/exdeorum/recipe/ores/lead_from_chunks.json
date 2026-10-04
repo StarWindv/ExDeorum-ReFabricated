@@ -1,0 +1,8 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/lead"] }
+  ],
+  "type": "exdeorum:ore_chunk",
+  "ore": "c:ores/lead",
+  "ore_chunk": "exdeorum:lead_ore_chunk"
+}

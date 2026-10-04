@@ -1,0 +1,15 @@
+accessWidener v2 official
+
+# RenderUtil reads atlas sprite pixel data for fluid and block face rendering
+accessible field net/minecraft/client/renderer/texture/TextureAtlasSprite x I
+accessible field net/minecraft/client/renderer/texture/TextureAtlasSprite y I
+accessible field net/minecraft/client/renderer/texture/TextureAtlas width I
+accessible field net/minecraft/client/renderer/texture/TextureAtlas height I
+
+# Witch water charges creepers (also referenced from WitchWaterBlock)
+accessible field net/minecraft/world/entity/monster/Creeper DATA_IS_POWERED Lnet/minecraft/network/syncher/EntityDataAccessor;
+
+# The mod reads the loaded recipe map and the registry access recipes were decoded with,
+# which the loot modifier loader reuses so item tag conditions can resolve
+accessible field net/minecraft/world/item/crafting/RecipeManager recipes Lnet/minecraft/world/item/crafting/RecipeMap;
+accessible field net/minecraft/world/item/crafting/RecipeManager registries Lnet/minecraft/core/HolderLookup$Provider;

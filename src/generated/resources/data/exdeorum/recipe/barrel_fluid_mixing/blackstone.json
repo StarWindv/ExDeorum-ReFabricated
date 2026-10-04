@@ -1,0 +1,12 @@
+{
+  "type": "exdeorum:barrel_fluid_mixing",
+  "additive_fluid": "exdeorum:witch_water",
+  "base_fluid": {
+    "amount": 1000,
+    "ingredient": "minecraft:lava"
+  },
+  "consumes_additive": true,
+  "result": {
+    "id": "minecraft:blackstone"
+  }
+}

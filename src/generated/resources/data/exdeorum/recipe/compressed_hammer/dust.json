@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:compressed_hammer",
+  "ingredient": "#exdeorum:compressed/sands",
+  "result": {
+    "id": "exdeorum:dust"
+  },
+  "result_amount": 9.0
+}

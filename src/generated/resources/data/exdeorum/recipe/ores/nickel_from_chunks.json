@@ -1,0 +1,8 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:tags_populated", "registry": "minecraft:item", "values": ["c:ores/nickel"] }
+  ],
+  "type": "exdeorum:ore_chunk",
+  "ore": "c:ores/nickel",
+  "ore_chunk": "exdeorum:nickel_ore_chunk"
+}

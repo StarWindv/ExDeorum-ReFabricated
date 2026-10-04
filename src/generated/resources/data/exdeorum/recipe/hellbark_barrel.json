@@ -1,0 +1,18 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["biomesoplenty"] }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "m": "biomesoplenty:hellbark_slab",
+    "s": "biomesoplenty:hellbark_planks"
+  },
+  "pattern": [
+    "s s",
+    "s s",
+    "sms"
+  ],
+  "result": {
+    "id": "exdeorum:hellbark_barrel"
+  }
+}

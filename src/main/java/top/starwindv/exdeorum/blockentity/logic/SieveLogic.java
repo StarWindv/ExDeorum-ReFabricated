@@ -1,0 +1,263 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package top.starwindv.exdeorum.blockentity.logic;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.storage.loot.LootContext;
+import top.starwindv.exdeorum.config.EConfig;
+import top.starwindv.exdeorum.recipe.RecipeUtil;
+import top.starwindv.exdeorum.recipe.sieve.SieveRecipe;
+import top.starwindv.exdeorum.tag.EItemTags;
+
+import java.util.List;
+
+public class SieveLogic {
+    private final Owner owner;
+    private final boolean mechanical;
+
+    // block currently being sifted
+    private ItemStack contents = ItemStack.EMPTY;
+    // mesh
+    protected ItemStack mesh = ItemStack.EMPTY;
+    // from 0.0 to 1.0
+    private float progress;
+    private float efficiency;
+    private int fortune;
+    private long lastTime = 0;
+    private final long minInterval;
+
+    public SieveLogic(Owner owner, boolean mechanical) {
+        this.owner = owner;
+        this.mechanical = mechanical;
+        this.minInterval = EConfig.SERVER.sieveIntervalTicks.get();
+    }
+
+    public ItemStack getMesh() {
+        return this.mesh;
+    }
+
+    public boolean isValidInput(ItemStack stack) {
+        return !getDropsFor(stack).isEmpty();
+    }
+
+    public boolean isValidMesh(ItemStack stack) {
+        return stack.is(EItemTags.SIEVE_MESHES);
+    }
+
+    // not pure, modifies the received stack
+    public void startSifting(ItemStack stack) {
+        this.contents = stack;
+        this.owner.markUpdated();
+    }
+
+    // Do not call on the client side
+    public void sift(float incrementProgress, long time) {
+        if (time < this.lastTime + this.minInterval) {
+            return;
+        }
+        
+        this.lastTime = time;
+        this.progress += incrementProgress * this.efficiency;
+
+        // Need epsilon because floating point decimals suck
+        if (this.progress >= 1.0f - Mth.EPSILON) {
+            var level = this.owner.getServerLevel();
+            var context = RecipeUtil.emptyLootContext(level);
+            var rand = level.getRandom();
+            var limitDrops = this.contents.getItem() == Items.MOSS_BLOCK && EConfig.SERVER.limitMossSieveDrops.get();
+            var handledAnyDrops = false;
+            var hasDrops = false;
+
+            for (SieveRecipe recipe : getDropsFor(this.contents)) {
+                var amount = getResultAmount(recipe, context, rand);
+
+                // Split overflowing stacks (64+) into multiple stacks
+                while (amount > 0) {
+                    hasDrops = true;
+                    // make a single item copy of recipe result
+                    var result = recipe.result.withCount(1).create();
+                    // the size of the stack respecting stack limits (ex. ender pearl limits to 16)
+                    var stackAmount = Math.min(amount, result.getMaxStackSize());
+                    result.setCount(stackAmount);
+                    amount -= stackAmount;
+                    var handleDrop = this.owner.handleResultItem(result, level, rand);
+                    handledAnyDrops = handledAnyDrops || handleDrop;
+
+                    // limit drops to 1 or two items (could be more than 2 but unlikely)
+                    if (limitDrops && rand.nextInt(5) != 0) {
+                        break;
+                    }
+                }
+            }
+
+            if (handledAnyDrops || !hasDrops) {
+                this.contents = ItemStack.EMPTY;
+                this.progress = 0.0f;
+            } else {
+                this.progress = 1.0f;
+            }
+        }
+
+        this.owner.markUpdated();
+    }
+
+    protected List<? extends SieveRecipe> getDropsFor(ItemStack contents) {
+        return RecipeUtil.getSieveRecipes(this.mesh.getItem(), contents);
+    }
+
+    protected int getResultAmount(SieveRecipe recipe, LootContext context, RandomSource rand) {
+        if (recipe.byHandOnly && this.mechanical) return 0;
+
+        var amount = recipe.resultAmount.getInt(context);
+
+        // Each level of fortune grants a 30% chance for an extra roll
+        for (int i = 0; i < this.fortune; ++i) {
+            if (rand.nextFloat() < 0.3f) {
+                amount += recipe.resultAmount.getInt(context);
+            }
+        }
+
+        return amount;
+    }
+
+    public void setMesh(HolderLookup.Provider registries, ItemStack mesh) {
+        setMesh(registries, mesh, true);
+    }
+
+    public void setMesh(HolderLookup.Provider registries, ItemStack mesh, boolean needsUpdate) {
+        var registry = registries.lookupOrThrow(Registries.ENCHANTMENT);
+        this.mesh = mesh;
+        this.efficiency = 1f + EnchantmentHelper.getItemEnchantmentLevel(registry.getOrThrow(Enchantments.EFFICIENCY), mesh) * 0.17f;
+        this.fortune = EnchantmentHelper.getItemEnchantmentLevel(registry.getOrThrow(Enchantments.FORTUNE), mesh);
+        if (mesh.isEmpty()) {
+            this.progress = 0.0f;
+            this.contents = ItemStack.EMPTY;
+        }
+        if (needsUpdate) {
+            this.owner.markUpdated();
+        }
+    }
+
+    public void saveNbt(ValueOutput output) {
+        if (!this.contents.isEmpty()) {
+            output.store("contents", ItemStack.CODEC, this.contents);
+        }
+        if (!this.mechanical && !this.mesh.isEmpty()) {
+            output.store("mesh", ItemStack.CODEC, this.mesh);
+        }
+        output.putFloat("progress", this.progress);
+    }
+
+    public void loadNbt(ValueInput input) {
+        var registries = input.lookup();
+        this.contents = input.read("contents", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        this.progress = input.getFloatOr("progress", 0f);
+        if (!this.mechanical) {
+            setMesh(registries, input.read("mesh", ItemStack.CODEC).orElse(ItemStack.EMPTY), false);
+        }
+    }
+
+    public void writeVisualData(RegistryFriendlyByteBuf buffer) {
+        ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, this.mesh);
+        buffer.writeFloat(this.progress);
+        ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, this.contents);
+    }
+
+    public void readVisualData(RegistryFriendlyByteBuf buffer) {
+        setMesh(buffer.registryAccess(), ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
+        this.progress = buffer.readFloat();
+        this.contents = ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer);
+    }
+
+    public void copyVisualData(BlockEntity fromIntegratedServer) {
+        if (fromIntegratedServer instanceof Owner fromOwner) {
+            var from = fromOwner.getLogic();
+
+            this.setMesh(fromIntegratedServer.getLevel().registryAccess(), from.mesh.copy());
+            this.progress = from.progress;
+            this.contents = from.contents;
+        }
+    }
+
+    public ItemStack getContents() {
+        return this.contents;
+    }
+
+    // client only
+    public void setContents(ItemStack contents) {
+        this.contents = contents;
+    }
+
+    public float getProgress() {
+        return this.progress;
+    }
+
+    // client only
+    public void setProgress(float progress) {
+        this.progress = progress;
+    }
+
+    // implement on the owner of this sieve logic
+    public interface Owner {
+        ServerLevel getServerLevel();
+
+        // Return whether the result item was consumed
+        boolean handleResultItem(ItemStack result, ServerLevel level, RandomSource rand);
+
+        void markUpdated();
+
+        SieveLogic getLogic();
+    }
+}

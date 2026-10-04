@@ -1,0 +1,396 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package top.starwindv.exdeorum.data;
+
+import com.google.gson.JsonObject;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.client.data.models.model.ModelInstance;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import top.starwindv.exdeorum.material.DefaultMaterials;
+import top.starwindv.exdeorum.registry.EBlocks;
+import top.starwindv.exdeorum.registry.ECompressedBlocks;
+import thedarkcolour.modkit.data.MKBlockModelProvider;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Objects;
+
+class BlockModels {
+    // 26.2 removed NeoForge's "render_type" model property. Vanilla now derives the
+    // render layer per quad from the sprite contents, and a texture can opt into the
+    // translucent pass with the "force_translucent" material flag instead.
+    static class ModelBuilder {
+        private final JsonObject json;
+
+        ModelBuilder(MKBlockModelProvider models, Identifier modelId, JsonObject json) {
+            this.json = json;
+            acceptModel(models, modelId, () -> json);
+        }
+    }
+
+    public static void addBlockModels(MKBlockModelProvider models) {
+        models.simpleBlock(EBlocks.DUST.get());
+        models.simpleBlock(EBlocks.CRUSHED_NETHERRACK.get());
+        models.simpleBlock(EBlocks.CRUSHED_END_STONE.get());
+        models.simpleBlock(EBlocks.CRUSHED_DEEPSLATE.get());
+        models.simpleBlock(EBlocks.CRUSHED_BLACKSTONE.get());
+
+        compressedOverlay(models);
+
+        for (var variant : ECompressedBlocks.ALL_VARIANTS) {
+            compressedBlock(models, variant.getBlock(), variant.getBase());
+        }
+
+        // Barrels
+        barrel(models, DefaultMaterials.OAK_BARREL.getBlock(), Blocks.OAK_PLANKS);
+        barrel(models, DefaultMaterials.SPRUCE_BARREL.getBlock(), Blocks.SPRUCE_PLANKS);
+        barrel(models, DefaultMaterials.BIRCH_BARREL.getBlock(), Blocks.BIRCH_PLANKS);
+        barrel(models, DefaultMaterials.JUNGLE_BARREL.getBlock(), Blocks.JUNGLE_PLANKS);
+        barrel(models, DefaultMaterials.ACACIA_BARREL.getBlock(), Blocks.ACACIA_PLANKS);
+        barrel(models, DefaultMaterials.DARK_OAK_BARREL.getBlock(), Blocks.DARK_OAK_PLANKS);
+        barrel(models, DefaultMaterials.MANGROVE_BARREL.getBlock(), Blocks.MANGROVE_PLANKS);
+        barrel(models, DefaultMaterials.CHERRY_BARREL.getBlock(), Blocks.CHERRY_PLANKS);
+        barrel(models, DefaultMaterials.PALE_OAK_BARREL.getBlock(), Blocks.PALE_OAK_PLANKS);
+        barrel(models, DefaultMaterials.BAMBOO_BARREL.getBlock(), Blocks.BAMBOO_PLANKS);
+        barrel(models, DefaultMaterials.CRIMSON_BARREL.getBlock(), Blocks.CRIMSON_PLANKS);
+        barrel(models, DefaultMaterials.WARPED_BARREL.getBlock(), Blocks.WARPED_PLANKS);
+        barrel(models, DefaultMaterials.STONE_BARREL.getBlock(), Blocks.STONE);
+
+        sieve(models, DefaultMaterials.OAK_SIEVE.getBlock(), Blocks.OAK_PLANKS);
+        sieve(models, DefaultMaterials.SPRUCE_SIEVE.getBlock(), Blocks.SPRUCE_PLANKS);
+        sieve(models, DefaultMaterials.BIRCH_SIEVE.getBlock(), Blocks.BIRCH_PLANKS);
+        sieve(models, DefaultMaterials.JUNGLE_SIEVE.getBlock(), Blocks.JUNGLE_PLANKS);
+        sieve(models, DefaultMaterials.ACACIA_SIEVE.getBlock(), Blocks.ACACIA_PLANKS);
+        sieve(models, DefaultMaterials.DARK_OAK_SIEVE.getBlock(), Blocks.DARK_OAK_PLANKS);
+        sieve(models, DefaultMaterials.MANGROVE_SIEVE.getBlock(), Blocks.MANGROVE_PLANKS);
+        sieve(models, DefaultMaterials.CHERRY_SIEVE.getBlock(), Blocks.CHERRY_PLANKS);
+        sieve(models, DefaultMaterials.PALE_OAK_SIEVE.getBlock(), Blocks.PALE_OAK_PLANKS);
+        sieve(models, DefaultMaterials.BAMBOO_SIEVE.getBlock(), Blocks.BAMBOO_PLANKS);
+        sieve(models, DefaultMaterials.CRIMSON_SIEVE.getBlock(), Blocks.CRIMSON_PLANKS);
+        sieve(models, DefaultMaterials.WARPED_SIEVE.getBlock(), Blocks.WARPED_PLANKS);
+
+        // Compressed Sieves
+        compressedSieve(models, DefaultMaterials.OAK_COMPRESSED_SIEVE.getBlock(), Blocks.OAK_LOG);
+        compressedSieve(models, DefaultMaterials.SPRUCE_COMPRESSED_SIEVE.getBlock(), Blocks.SPRUCE_LOG);
+        compressedSieve(models, DefaultMaterials.BIRCH_COMPRESSED_SIEVE.getBlock(), Blocks.BIRCH_LOG);
+        compressedSieve(models, DefaultMaterials.JUNGLE_COMPRESSED_SIEVE.getBlock(), Blocks.JUNGLE_LOG);
+        compressedSieve(models, DefaultMaterials.ACACIA_COMPRESSED_SIEVE.getBlock(), Blocks.ACACIA_LOG);
+        compressedSieve(models, DefaultMaterials.DARK_OAK_COMPRESSED_SIEVE.getBlock(), Blocks.DARK_OAK_LOG);
+        compressedSieve(models, DefaultMaterials.MANGROVE_COMPRESSED_SIEVE.getBlock(), Blocks.MANGROVE_LOG);
+        compressedSieve(models, DefaultMaterials.CHERRY_COMPRESSED_SIEVE.getBlock(), Blocks.CHERRY_LOG);
+        compressedSieve(models, DefaultMaterials.PALE_OAK_COMPRESSED_SIEVE.getBlock(), Blocks.PALE_OAK_LOG);
+        compressedSieve(models, DefaultMaterials.BAMBOO_COMPRESSED_SIEVE.getBlock(), Blocks.BAMBOO_BLOCK);
+        compressedSieve(models, DefaultMaterials.WARPED_COMPRESSED_SIEVE.getBlock(), Blocks.WARPED_STEM);
+        compressedSieve(models, DefaultMaterials.CRIMSON_COMPRESSED_SIEVE.getBlock(), Blocks.CRIMSON_STEM);
+
+        // Lava Crucible
+        crucible(models, EBlocks.UNFIRED_PORCELAIN_CRUCIBLE.get());
+        crucible(models, DefaultMaterials.PORCELAIN_CRUCIBLE.getBlock());
+        crucible(models, DefaultMaterials.CRIMSON_CRUCIBLE.getBlock(), Blocks.CRIMSON_STEM);
+        crucible(models, DefaultMaterials.WARPED_CRUCIBLE.getBlock(), Blocks.WARPED_STEM);
+
+        // Water Crucible
+        crucible(models, DefaultMaterials.OAK_CRUCIBLE.getBlock(), Blocks.OAK_LOG);
+        crucible(models, DefaultMaterials.SPRUCE_CRUCIBLE.getBlock(), Blocks.SPRUCE_LOG);
+        crucible(models, DefaultMaterials.BIRCH_CRUCIBLE.getBlock(), Blocks.BIRCH_LOG);
+        crucible(models, DefaultMaterials.JUNGLE_CRUCIBLE.getBlock(), Blocks.JUNGLE_LOG);
+        crucible(models, DefaultMaterials.ACACIA_CRUCIBLE.getBlock(), Blocks.ACACIA_LOG);
+        crucible(models, DefaultMaterials.DARK_OAK_CRUCIBLE.getBlock(), Blocks.DARK_OAK_LOG);
+        crucible(models, DefaultMaterials.MANGROVE_CRUCIBLE.getBlock(), Blocks.MANGROVE_LOG);
+        crucible(models, DefaultMaterials.CHERRY_CRUCIBLE.getBlock(), Blocks.CHERRY_LOG);
+        crucible(models, DefaultMaterials.PALE_OAK_CRUCIBLE.getBlock(), Blocks.PALE_OAK_LOG);
+        crucible(models, DefaultMaterials.BAMBOO_CRUCIBLE.getBlock(), Blocks.BAMBOO_BLOCK);
+
+        // Mod compat
+        bopModels(models);
+        arsNouveauModels(models);
+        aetherModels(models);
+        blueSkiesModels(models);
+    }
+
+    private static void arsNouveauModels(MKBlockModelProvider models) {
+        barrel(models, DefaultMaterials.ARCHWOOD_BARREL.getBlock(), ModCompatData.ARCHWOOD_PLANKS.get());
+
+        sieve(models, DefaultMaterials.ARCHWOOD_SIEVE.getBlock(), ModCompatData.ARCHWOOD_PLANKS.get());
+
+        compressedSieve(models, DefaultMaterials.CASCADING_ARCHWOOD_COMPRESSED_SIEVE.getBlock(), ModCompatData.CASCADING_ARCHWOOD_LOG.get());
+        compressedSieve(models, DefaultMaterials.BLAZING_ARCHWOOD_COMPRESSED_SIEVE.getBlock(), ModCompatData.BLAZING_ARCHWOOD_LOG.get());
+        compressedSieve(models, DefaultMaterials.VEXING_ARCHWOOD_COMPRESSED_SIEVE.getBlock(), ModCompatData.VEXING_ARCHWOOD_LOG.get());
+        compressedSieve(models, DefaultMaterials.FLOURISHING_ARCHWOOD_COMPRESSED_SIEVE.getBlock(), ModCompatData.FLOURISHING_ARCHWOOD_LOG.get());
+
+        crucible(models, DefaultMaterials.CASCADING_ARCHWOOD_CRUCIBLE.getBlock(), ModCompatData.CASCADING_ARCHWOOD_LOG.get());
+        crucible(models, DefaultMaterials.BLAZING_ARCHWOOD_CRUCIBLE.getBlock(), ModCompatData.BLAZING_ARCHWOOD_LOG.get());
+        crucible(models, DefaultMaterials.VEXING_ARCHWOOD_CRUCIBLE.getBlock(), ModCompatData.VEXING_ARCHWOOD_LOG.get());
+        crucible(models, DefaultMaterials.FLOURISHING_ARCHWOOD_CRUCIBLE.getBlock(), ModCompatData.FLOURISHING_ARCHWOOD_LOG.get());
+    }
+
+    private static void aetherModels(MKBlockModelProvider models) {
+        barrel(models, DefaultMaterials.SKYROOT_BARREL.getBlock(), ModCompatData.SKYROOT_PLANKS.get(), "construction/");
+
+        sieve(models, DefaultMaterials.SKYROOT_SIEVE.getBlock(), ModCompatData.SKYROOT_PLANKS.get(), "construction/");
+
+        compressedSieve(models, DefaultMaterials.SKYROOT_COMPRESSED_SIEVE.getBlock(), ModCompatData.SKYROOT_LOG.get(), "natural/", "");
+        compressedSieve(models, DefaultMaterials.GOLDEN_OAK_COMPRESSED_SIEVE.getBlock(), ModCompatData.GOLDEN_OAK_LOG.get(), "natural/", "");
+
+        crucible(models, DefaultMaterials.SKYROOT_CRUCIBLE.getBlock(), ModCompatData.SKYROOT_LOG.get(), "natural/", "");
+        crucible(models, DefaultMaterials.GOLDEN_OAK_CRUCIBLE.getBlock(), ModCompatData.GOLDEN_OAK_LOG.get(), "natural/", "");
+    }
+
+    private static void blueSkiesModels(MKBlockModelProvider models) {
+        final String woodPrefix = "wood/";
+        final String logSuffix = "_side";
+
+        barrel(models, DefaultMaterials.BLUEBRIGHT_BARREL.getBlock(), ModCompatData.BLUEBRIGHT_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.STARLIT_BARREL.getBlock(), ModCompatData.STARLIT_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.FROSTBRIGHT_BARREL.getBlock(), ModCompatData.FROSTBRIGHT_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.COMET_BARREL.getBlock(), ModCompatData.COMET_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.LUNAR_BARREL.getBlock(), ModCompatData.LUNAR_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.DUSK_BARREL.getBlock(), ModCompatData.DUSK_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.MAPLE_BARREL.getBlock(), ModCompatData.MAPLE_PLANKS.get(), woodPrefix);
+        barrel(models, DefaultMaterials.CRYSTALLIZED_BARREL.getBlock(), ModCompatData.CRYSTALLIZED_PLANKS.get(), woodPrefix);
+
+        sieve(models, DefaultMaterials.BLUEBRIGHT_SIEVE.getBlock(), ModCompatData.BLUEBRIGHT_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.STARLIT_SIEVE.getBlock(), ModCompatData.STARLIT_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.FROSTBRIGHT_SIEVE.getBlock(), ModCompatData.FROSTBRIGHT_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.COMET_SIEVE.getBlock(), ModCompatData.COMET_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.LUNAR_SIEVE.getBlock(), ModCompatData.LUNAR_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.DUSK_SIEVE.getBlock(), ModCompatData.DUSK_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.MAPLE_SIEVE.getBlock(), ModCompatData.MAPLE_PLANKS.get(), woodPrefix);
+        sieve(models, DefaultMaterials.CRYSTALLIZED_SIEVE.getBlock(), ModCompatData.CRYSTALLIZED_PLANKS.get(), woodPrefix);
+
+        compressedSieve(models, DefaultMaterials.BLUEBRIGHT_COMPRESSED_SIEVE.getBlock(), ModCompatData.BLUEBRIGHT_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.STARLIT_COMPRESSED_SIEVE.getBlock(), ModCompatData.STARLIT_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.FROSTBRIGHT_COMPRESSED_SIEVE.getBlock(), ModCompatData.FROSTBRIGHT_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.COMET_COMPRESSED_SIEVE.getBlock(), ModCompatData.COMET_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.LUNAR_COMPRESSED_SIEVE.getBlock(), ModCompatData.LUNAR_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.DUSK_COMPRESSED_SIEVE.getBlock(), ModCompatData.DUSK_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.MAPLE_COMPRESSED_SIEVE.getBlock(), ModCompatData.MAPLE_LOG.get(), woodPrefix, logSuffix);
+        compressedSieve(models, DefaultMaterials.CRYSTALLIZED_COMPRESSED_SIEVE.getBlock(), ModCompatData.CRYSTALLIZED_LOG.get(), woodPrefix, logSuffix);
+
+        crucible(models, DefaultMaterials.BLUEBRIGHT_CRUCIBLE.getBlock(), ModCompatData.BLUEBRIGHT_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.STARLIT_CRUCIBLE.getBlock(), ModCompatData.STARLIT_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.FROSTBRIGHT_CRUCIBLE.getBlock(), ModCompatData.FROSTBRIGHT_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.COMET_CRUCIBLE.getBlock(), ModCompatData.COMET_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.LUNAR_CRUCIBLE.getBlock(), ModCompatData.LUNAR_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.DUSK_CRUCIBLE.getBlock(), ModCompatData.DUSK_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.MAPLE_CRUCIBLE.getBlock(), ModCompatData.MAPLE_LOG.get(), woodPrefix, logSuffix);
+        crucible(models, DefaultMaterials.CRYSTALLIZED_CRUCIBLE.getBlock(), ModCompatData.CRYSTALLIZED_LOG.get(), woodPrefix, logSuffix);
+    }
+
+    private static void bopModels(MKBlockModelProvider models) {
+        barrel(models, DefaultMaterials.FIR_BARREL.getBlock(), ModCompatData.FIR_PLANKS.get());
+        barrel(models, DefaultMaterials.REDWOOD_BARREL.getBlock(), ModCompatData.REDWOOD_PLANKS.get());
+        barrel(models, DefaultMaterials.MAHOGANY_BARREL.getBlock(), ModCompatData.MAHOGANY_PLANKS.get());
+        barrel(models, DefaultMaterials.JACARANDA_BARREL.getBlock(), ModCompatData.JACARANDA_PLANKS.get());
+        barrel(models, DefaultMaterials.PALM_BARREL.getBlock(), ModCompatData.PALM_PLANKS.get());
+        barrel(models, DefaultMaterials.WILLOW_BARREL.getBlock(), ModCompatData.WILLOW_PLANKS.get());
+        barrel(models, DefaultMaterials.DEAD_BARREL.getBlock(), ModCompatData.DEAD_PLANKS.get());
+        barrel(models, DefaultMaterials.MAGIC_BARREL.getBlock(), ModCompatData.MAGIC_PLANKS.get());
+        barrel(models, DefaultMaterials.UMBRAN_BARREL.getBlock(), ModCompatData.UMBRAN_PLANKS.get());
+        barrel(models, DefaultMaterials.HELLBARK_BARREL.getBlock(), ModCompatData.HELLBARK_PLANKS.get());
+
+        sieve(models, DefaultMaterials.FIR_SIEVE.getBlock(), ModCompatData.FIR_PLANKS.get());
+        sieve(models, DefaultMaterials.REDWOOD_SIEVE.getBlock(), ModCompatData.REDWOOD_PLANKS.get());
+        sieve(models, DefaultMaterials.MAHOGANY_SIEVE.getBlock(), ModCompatData.MAHOGANY_PLANKS.get());
+        sieve(models, DefaultMaterials.JACARANDA_SIEVE.getBlock(), ModCompatData.JACARANDA_PLANKS.get());
+        sieve(models, DefaultMaterials.PALM_SIEVE.getBlock(), ModCompatData.PALM_PLANKS.get());
+        sieve(models, DefaultMaterials.WILLOW_SIEVE.getBlock(), ModCompatData.WILLOW_PLANKS.get());
+        sieve(models, DefaultMaterials.DEAD_SIEVE.getBlock(), ModCompatData.DEAD_PLANKS.get());
+        sieve(models, DefaultMaterials.MAGIC_SIEVE.getBlock(), ModCompatData.MAGIC_PLANKS.get());
+        sieve(models, DefaultMaterials.UMBRAN_SIEVE.getBlock(), ModCompatData.UMBRAN_PLANKS.get());
+        sieve(models, DefaultMaterials.HELLBARK_SIEVE.getBlock(), ModCompatData.HELLBARK_PLANKS.get());
+
+        compressedSieve(models, DefaultMaterials.FIR_COMPRESSED_SIEVE.getBlock(), ModCompatData.FIR_LOG.get());
+        compressedSieve(models, DefaultMaterials.REDWOOD_COMPRESSED_SIEVE.getBlock(), ModCompatData.REDWOOD_LOG.get());
+        compressedSieve(models, DefaultMaterials.MAHOGANY_COMPRESSED_SIEVE.getBlock(), ModCompatData.MAHOGANY_LOG.get());
+        compressedSieve(models, DefaultMaterials.JACARANDA_COMPRESSED_SIEVE.getBlock(), ModCompatData.JACARANDA_LOG.get());
+        compressedSieve(models, DefaultMaterials.PALM_COMPRESSED_SIEVE.getBlock(), ModCompatData.PALM_LOG.get());
+        compressedSieve(models, DefaultMaterials.WILLOW_COMPRESSED_SIEVE.getBlock(), ModCompatData.WILLOW_LOG.get());
+        compressedSieve(models, DefaultMaterials.DEAD_COMPRESSED_SIEVE.getBlock(), ModCompatData.DEAD_LOG.get());
+        compressedSieve(models, DefaultMaterials.MAGIC_COMPRESSED_SIEVE.getBlock(), ModCompatData.MAGIC_LOG.get());
+        compressedSieve(models, DefaultMaterials.UMBRAN_COMPRESSED_SIEVE.getBlock(), ModCompatData.UMBRAN_LOG.get());
+        compressedSieve(models, DefaultMaterials.HELLBARK_COMPRESSED_SIEVE.getBlock(), ModCompatData.HELLBARK_LOG.get());
+
+        crucible(models, DefaultMaterials.FIR_CRUCIBLE.getBlock(), ModCompatData.FIR_LOG.get());
+        crucible(models, DefaultMaterials.REDWOOD_CRUCIBLE.getBlock(), ModCompatData.REDWOOD_LOG.get());
+        crucible(models, DefaultMaterials.MAHOGANY_CRUCIBLE.getBlock(), ModCompatData.MAHOGANY_LOG.get());
+        crucible(models, DefaultMaterials.JACARANDA_CRUCIBLE.getBlock(), ModCompatData.JACARANDA_LOG.get());
+        crucible(models, DefaultMaterials.PALM_CRUCIBLE.getBlock(), ModCompatData.PALM_LOG.get());
+        crucible(models, DefaultMaterials.WILLOW_CRUCIBLE.getBlock(), ModCompatData.WILLOW_LOG.get());
+        crucible(models, DefaultMaterials.DEAD_CRUCIBLE.getBlock(), ModCompatData.DEAD_LOG.get());
+        crucible(models, DefaultMaterials.MAGIC_CRUCIBLE.getBlock(), ModCompatData.MAGIC_LOG.get());
+        crucible(models, DefaultMaterials.UMBRAN_CRUCIBLE.getBlock(), ModCompatData.UMBRAN_LOG.get());
+        crucible(models, DefaultMaterials.HELLBARK_CRUCIBLE.getBlock(), ModCompatData.HELLBARK_LOG.get());
+    }
+
+    // Only used in Ex Deorum
+    public static void crucible(MKBlockModelProvider models, Block block) {
+        crucible(models, block, block);
+    }
+
+    public static void compressedBlock(MKBlockModelProvider models, Block block, Block appearance) {
+        models.simpleBlock(block, models.blockTexture(appearance));
+
+        // The blockstate and item definition files that combine the base block model with
+        // the shared translucent overlay model are maintained by hand in
+        // src/generated/resources/assets/exdeorum, because writing blockstates and item
+        // definitions needs the NeoForge-only ModKit providers.
+    }
+
+    /**
+     * The translucent skin drawn over every compressed block.26.2 dropped NeoForge's
+     * {@code render_type} model property, so the translucent pass is requested through
+     * the vanilla {@code force_translucent} material flag instead.
+     */
+    public static void compressedOverlay(MKBlockModelProvider models) {
+        Identifier modelId = models.modBlock("compressed_overlay");
+        Identifier texture = models.modLoc("block/compressed_overlay");
+
+        JsonObject json = new JsonObject();
+        json.addProperty("parent", models.mcBlock("cube_all").toString());
+
+        JsonObject textures = new JsonObject();
+        textures.addProperty("particle", texture.toString());
+
+        JsonObject material = new JsonObject();
+        material.addProperty("sprite", texture.toString());
+        material.addProperty("force_translucent", true);
+        textures.add("all", material);
+
+        json.add("textures", textures);
+
+        acceptModel(models, modelId, () -> json);
+    }
+
+    public static void crucible(MKBlockModelProvider models, Block block, Block appearance) {
+        crucible(models, block, appearance, "", "");
+    }
+
+    public static ModelBuilder crucible(MKBlockModelProvider models, Block block, Block appearance, String pathPrefix, String pathSuffix) {
+        var texture = texture(appearance, pathPrefix, pathSuffix);
+        Identifier modelId = models.modBlock(models.name(block));
+
+        JsonObject json = new JsonObject();
+        json.addProperty("parent", models.modBlock("template_crucible").toString());
+        JsonObject textures = new JsonObject();
+        textures.addProperty("inside", texture.toString());
+        textures.addProperty("top", texture.toString());
+        textures.addProperty("bottom", texture.toString());
+        textures.addProperty("side", texture.toString());
+        json.add("textures", textures);
+
+        models.simpleBlock(block, modelId);
+        return new ModelBuilder(models, modelId, json);
+    }
+
+    private static Identifier texture(Block block, String prefix, String suffix) {
+        var key = Objects.requireNonNull(BuiltInRegistries.BLOCK.getKey(block));
+        return Identifier.fromNamespaceAndPath(key.getNamespace(), "block/" + prefix + key.getPath() + suffix);
+    }
+
+    private static void acceptModel(MKBlockModelProvider models, Identifier modelId, ModelInstance model) {
+        try {
+            Method acceptModel = MKBlockModelProvider.class.getDeclaredMethod("acceptModel", Identifier.class, ModelInstance.class);
+            acceptModel.setAccessible(true);
+            acceptModel.invoke(models, modelId, model);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
+            throw new IllegalStateException("Unable to register generated model " + modelId, exception);
+        }
+    }
+
+    public static void barrel(MKBlockModelProvider models, Block block, Block appearance) {
+        barrel(models, block, appearance, "");
+    }
+
+    public static ModelBuilder barrel(MKBlockModelProvider models, Block block, Block appearance, String pathPrefix) {
+        var texture = texture(appearance, pathPrefix, "");
+        Identifier modelId = models.modBlock(models.name(block));
+
+        JsonObject json = new JsonObject();
+        json.addProperty("parent", models.modBlock("template_barrel").toString());
+        JsonObject textures = new JsonObject();
+        textures.addProperty("barrel", texture.toString());
+        json.add("textures", textures);
+
+        models.simpleBlock(block, modelId);
+        return new ModelBuilder(models, modelId, json);
+    }
+
+    public static void sieve(MKBlockModelProvider models, Block block, Block appearance) {
+        sieve(models, block, appearance, "");
+    }
+
+    public static ModelBuilder sieve(MKBlockModelProvider models, Block block, Block appearance, String pathPrefix) {
+        var texture = texture(appearance, pathPrefix, "");
+        Identifier modelId = models.modBlock(models.name(block));
+
+        JsonObject json = new JsonObject();
+        json.addProperty("parent", models.modBlock("template_sieve").toString());
+        JsonObject textures = new JsonObject();
+        textures.addProperty("texture", texture.toString());
+        json.add("textures", textures);
+
+        models.simpleBlock(block, modelId);
+        return new ModelBuilder(models, modelId, json);
+    }
+
+    public static void compressedSieve(MKBlockModelProvider models, Block block, Block appearance) {
+        compressedSieve(models, block, appearance, "", "");
+    }
+
+    public static ModelBuilder compressedSieve(MKBlockModelProvider models, Block block, Block appearance, String pathPrefix, String pathSuffix) {
+        var texture = texture(appearance, pathPrefix, pathSuffix);
+        Identifier modelId = models.modBlock(models.name(block));
+
+        JsonObject json = new JsonObject();
+        json.addProperty("parent", models.modBlock("template_compressed_sieve").toString());
+        JsonObject textures = new JsonObject();
+        textures.addProperty("texture", texture.toString());
+        json.add("textures", textures);
+
+        models.simpleBlock(block, modelId);
+        return new ModelBuilder(models, modelId, json);
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "#": "#c:gems/diamond",
+    "B": "minecraft:bowl"
+  },
+  "pattern": [
+    "#  ",
+    "#B#",
+    " # "
+  ],
+  "result": {
+    "id": "exdeorum:diamond_watering_can"
+  }
+}

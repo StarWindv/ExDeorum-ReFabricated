@@ -1,0 +1,11 @@
+{
+  "type": "exdeorum:barrel_mixing",
+  "fluid": {
+    "amount": 1000,
+    "ingredient": "minecraft:water"
+  },
+  "ingredient": "exdeorum:porcelain_milk_bucket",
+  "result": {
+    "id": "minecraft:slime_block"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "exdeorum:barrel_compost",
+  "ingredient": [
+    "minecraft:rabbit",
+    "minecraft:cooked_rabbit"
+  ],
+  "volume": 100
+}

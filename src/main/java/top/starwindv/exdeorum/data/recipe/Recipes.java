@@ -1,0 +1,832 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package top.starwindv.exdeorum.data.recipe;
+
+import net.minecraft.advancements.predicates.StatePropertiesPredicate;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.data.recipes.RecipeCategory;
+import net.minecraft.data.recipes.RecipeOutput;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.BlockItemTags;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.loot.providers.number.BinomialDistributionGenerator;
+import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
+import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
+import net.neoforged.neoforge.common.NeoForgeMod;
+import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.ModLoadedCondition;
+import net.neoforged.neoforge.common.conditions.NotCondition;
+import net.neoforged.neoforge.common.conditions.TagEmptyCondition;
+import net.neoforged.neoforge.fluids.FluidStackTemplate;
+import net.neoforged.neoforge.fluids.crafting.FluidIngredient;
+import net.neoforged.neoforge.fluids.crafting.SizedFluidIngredient;
+import top.starwindv.exdeorum.ExDeorum;
+import top.starwindv.exdeorum.block.InfestedLeavesBlock;
+import top.starwindv.exdeorum.compat.ModIds;
+import top.starwindv.exdeorum.data.ModCompatData;
+import top.starwindv.exdeorum.material.DefaultMaterials;
+import top.starwindv.exdeorum.recipe.BlockPredicate;
+import top.starwindv.exdeorum.recipe.OreChunkRecipe;
+import top.starwindv.exdeorum.recipe.WeightedList;
+import top.starwindv.exdeorum.recipe.barrel.BarrelCompostRecipe;
+import top.starwindv.exdeorum.recipe.barrel.BarrelFluidMixingRecipe;
+import top.starwindv.exdeorum.recipe.barrel.BarrelMixingRecipe;
+import top.starwindv.exdeorum.recipe.barrel.FluidTransformationRecipe;
+import top.starwindv.exdeorum.recipe.crook.CrookRecipe;
+import top.starwindv.exdeorum.recipe.crucible.CrucibleHeatRecipe;
+import top.starwindv.exdeorum.recipe.crucible.CrucibleRecipe;
+import top.starwindv.exdeorum.recipe.hammer.CompressedHammerRecipe;
+import top.starwindv.exdeorum.recipe.hammer.HammerRecipe;
+import top.starwindv.exdeorum.registry.EBlocks;
+import top.starwindv.exdeorum.registry.ECompressedBlocks;
+import top.starwindv.exdeorum.registry.EFluids;
+import top.starwindv.exdeorum.registry.EItems;
+import top.starwindv.exdeorum.tag.EItemTags;
+import thedarkcolour.modkit.data.MKRecipeProvider;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+
+import static net.minecraft.world.level.storage.loot.providers.number.BinomialDistributionGenerator.binomial;
+import static net.minecraft.world.level.storage.loot.providers.number.ConstantValue.exactly;
+import static net.minecraft.world.level.storage.loot.providers.number.UniformGenerator.between;
+import static thedarkcolour.modkit.data.MKRecipeProvider.*;
+
+public class Recipes {
+    private static final Ingredient SPORES_AND_SEEDS = ingredient(EItems.GRASS_SEEDS, EItems.MYCELIUM_SPORES, EItems.WARPED_NYLIUM_SPORES, EItems.CRIMSON_NYLIUM_SPORES);
+    // Vanilla removed "minecraft:tall_flowers", the c tag is its replacement
+    private static final TagKey<Item> TALL_FLOWERS = Tags.Items.FLOWERS_TALL;
+
+    public static void addRecipes(RecipeOutput writer, MKRecipeProvider recipes) {
+        craftingRecipes(writer, recipes);
+        smeltingRecipes(recipes);
+        SieveRecipes.sieveRecipes(writer, recipes);
+        crucibleRecipes(writer, recipes);
+        hammerRecipes(writer, recipes);
+        compressedHammerRecipes(writer, recipes);
+        crookRecipes(writer);
+        crucibleHeatSources(writer);
+        barrelCompostRecipes(writer, recipes);
+        barrelMixingRecipes(writer);
+        fluidTransformationRecipes(writer);
+    }
+
+    private static void craftingRecipes(RecipeOutput writer, MKRecipeProvider recipes) {
+        // Crooks
+        shapedCrook(recipes, EItems.CROOK, recipes.ingredient(Tags.Items.RODS_WOODEN));
+        shapedCrook(recipes, EItems.BONE_CROOK, ingredient(Items.BONE));
+
+        // Hammers
+        shapedHammer(recipes, EItems.WOODEN_HAMMER, recipes.ingredient(ItemTags.PLANKS));
+        shapedHammer(recipes, EItems.STONE_HAMMER, recipes.ingredient(ItemTags.STONE_CRAFTING_MATERIALS));
+        shapedHammer(recipes, EItems.GOLDEN_HAMMER, recipes.ingredient(Tags.Items.INGOTS_GOLD));
+        shapedHammer(recipes, EItems.IRON_HAMMER, recipes.ingredient(Tags.Items.INGOTS_IRON));
+        shapedHammer(recipes, EItems.DIAMOND_HAMMER, recipes.ingredient(Tags.Items.GEMS_DIAMOND));
+        recipes.netheriteUpgrade(RecipeCategory.TOOLS, ingredient(EItems.DIAMOND_HAMMER.get()), EItems.NETHERITE_HAMMER.get());
+
+        // Crucibles
+        uShaped(recipes, DefaultMaterials.OAK_CRUCIBLE.getItem(), ingredient(Items.OAK_LOG), ingredient(Items.OAK_SLAB));
+        uShaped(recipes, DefaultMaterials.SPRUCE_CRUCIBLE.getItem(), ingredient(Items.SPRUCE_LOG), ingredient(Items.SPRUCE_SLAB));
+        uShaped(recipes, DefaultMaterials.BIRCH_CRUCIBLE.getItem(), ingredient(Items.BIRCH_LOG), ingredient(Items.BIRCH_SLAB));
+        uShaped(recipes, DefaultMaterials.JUNGLE_CRUCIBLE.getItem(), ingredient(Items.JUNGLE_LOG), ingredient(Items.JUNGLE_SLAB));
+        uShaped(recipes, DefaultMaterials.ACACIA_CRUCIBLE.getItem(), ingredient(Items.ACACIA_LOG), ingredient(Items.ACACIA_SLAB));
+        uShaped(recipes, DefaultMaterials.DARK_OAK_CRUCIBLE.getItem(), ingredient(Items.DARK_OAK_LOG), ingredient(Items.DARK_OAK_SLAB));
+        uShaped(recipes, DefaultMaterials.MANGROVE_CRUCIBLE.getItem(), ingredient(Items.MANGROVE_LOG), ingredient(Items.MANGROVE_SLAB));
+        uShaped(recipes, DefaultMaterials.CHERRY_CRUCIBLE.getItem(), ingredient(Items.CHERRY_LOG), ingredient(Items.CHERRY_SLAB));
+        uShaped(recipes, DefaultMaterials.PALE_OAK_CRUCIBLE.getItem(), ingredient(Items.PALE_OAK_LOG), ingredient(Items.PALE_OAK_SLAB));
+        uShaped(recipes, DefaultMaterials.BAMBOO_CRUCIBLE.getItem(), ingredient(Items.BAMBOO_BLOCK), ingredient(Items.BAMBOO_SLAB));
+        uShaped(recipes, DefaultMaterials.CRIMSON_CRUCIBLE.getItem(), ingredient(Items.CRIMSON_STEM), ingredient(Items.CRIMSON_SLAB));
+        uShaped(recipes, DefaultMaterials.WARPED_CRUCIBLE.getItem(), ingredient(Items.WARPED_STEM), ingredient(Items.WARPED_SLAB));
+        uShaped(recipes, EItems.UNFIRED_PORCELAIN_CRUCIBLE.get(), ingredient(EItems.PORCELAIN_CLAY_BALL.get()), ingredient(EItems.PORCELAIN_CLAY_BALL.get()));
+        // BOP crucibles
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.FIR_LOG_ITEM, ModCompatData.FIR_SLAB, DefaultMaterials.FIR_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.REDWOOD_LOG_ITEM, ModCompatData.REDWOOD_SLAB, DefaultMaterials.REDWOOD_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.MAHOGANY_LOG_ITEM, ModCompatData.MAHOGANY_SLAB, DefaultMaterials.MAHOGANY_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.JACARANDA_LOG_ITEM, ModCompatData.JACARANDA_SLAB, DefaultMaterials.JACARANDA_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.PALM_LOG_ITEM, ModCompatData.PALM_SLAB, DefaultMaterials.PALM_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.WILLOW_LOG_ITEM, ModCompatData.WILLOW_SLAB, DefaultMaterials.WILLOW_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.DEAD_LOG_ITEM, ModCompatData.DEAD_SLAB, DefaultMaterials.DEAD_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.MAGIC_LOG_ITEM, ModCompatData.MAGIC_SLAB, DefaultMaterials.MAGIC_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.UMBRAN_LOG_ITEM, ModCompatData.UMBRAN_SLAB, DefaultMaterials.UMBRAN_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.HELLBARK_LOG_ITEM, ModCompatData.HELLBARK_SLAB, DefaultMaterials.HELLBARK_CRUCIBLE.getItem());
+        // Ars crucibles
+        modUShaped(recipes, ModIds.ARS_NOUVEAU, ModCompatData.CASCADING_ARCHWOOD_LOG_ITEM, ModCompatData.ARCHWOOD_SLAB, DefaultMaterials.CASCADING_ARCHWOOD_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.ARS_NOUVEAU, ModCompatData.BLAZING_ARCHWOOD_LOG_ITEM, ModCompatData.ARCHWOOD_SLAB, DefaultMaterials.BLAZING_ARCHWOOD_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.ARS_NOUVEAU, ModCompatData.VEXING_ARCHWOOD_LOG_ITEM, ModCompatData.ARCHWOOD_SLAB, DefaultMaterials.VEXING_ARCHWOOD_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.ARS_NOUVEAU, ModCompatData.FLOURISHING_ARCHWOOD_LOG_ITEM, ModCompatData.ARCHWOOD_SLAB, DefaultMaterials.FLOURISHING_ARCHWOOD_CRUCIBLE.getItem());
+        // Aether crucibles
+        modUShaped(recipes, ModIds.AETHER, ModCompatData.GOLDEN_OAK_LOG_ITEM, ModCompatData.SKYROOT_SLAB, DefaultMaterials.GOLDEN_OAK_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.AETHER, ModCompatData.SKYROOT_LOG_ITEM, ModCompatData.SKYROOT_SLAB, DefaultMaterials.SKYROOT_CRUCIBLE.getItem());
+        // Blue Skies crucibles
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.BLUEBRIGHT_LOG_ITEM, ModCompatData.BLUEBRIGHT_SLAB, DefaultMaterials.BLUEBRIGHT_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.STARLIT_LOG_ITEM, ModCompatData.STARLIT_SLAB, DefaultMaterials.STARLIT_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.FROSTBRIGHT_LOG_ITEM, ModCompatData.FROSTBRIGHT_SLAB, DefaultMaterials.FROSTBRIGHT_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.COMET_LOG_ITEM, ModCompatData.COMET_SLAB, DefaultMaterials.COMET_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.LUNAR_LOG_ITEM, ModCompatData.LUNAR_SLAB, DefaultMaterials.LUNAR_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.DUSK_LOG_ITEM, ModCompatData.DUSK_SLAB, DefaultMaterials.DUSK_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.MAPLE_LOG_ITEM, ModCompatData.MAPLE_SLAB, DefaultMaterials.MAPLE_CRUCIBLE.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.CRYSTALLIZED_LOG_ITEM, ModCompatData.CRYSTALLIZED_SLAB, DefaultMaterials.CRYSTALLIZED_CRUCIBLE.getItem());
+
+        // Barrels
+        uShaped(recipes, DefaultMaterials.OAK_BARREL.getItem(), ingredient(Items.OAK_PLANKS), ingredient(Items.OAK_SLAB));
+        uShaped(recipes, DefaultMaterials.SPRUCE_BARREL.getItem(), ingredient(Items.SPRUCE_PLANKS), ingredient(Items.SPRUCE_SLAB));
+        uShaped(recipes, DefaultMaterials.BIRCH_BARREL.getItem(), ingredient(Items.BIRCH_PLANKS), ingredient(Items.BIRCH_SLAB));
+        uShaped(recipes, DefaultMaterials.JUNGLE_BARREL.getItem(), ingredient(Items.JUNGLE_PLANKS), ingredient(Items.JUNGLE_SLAB));
+        uShaped(recipes, DefaultMaterials.ACACIA_BARREL.getItem(), ingredient(Items.ACACIA_PLANKS), ingredient(Items.ACACIA_SLAB));
+        uShaped(recipes, DefaultMaterials.DARK_OAK_BARREL.getItem(), ingredient(Items.DARK_OAK_PLANKS), ingredient(Items.DARK_OAK_SLAB));
+        uShaped(recipes, DefaultMaterials.MANGROVE_BARREL.getItem(), ingredient(Items.MANGROVE_PLANKS), ingredient(Items.MANGROVE_SLAB));
+        uShaped(recipes, DefaultMaterials.CHERRY_BARREL.getItem(), ingredient(Items.CHERRY_PLANKS), ingredient(Items.CHERRY_SLAB));
+        uShaped(recipes, DefaultMaterials.PALE_OAK_BARREL.getItem(), ingredient(Items.PALE_OAK_PLANKS), ingredient(Items.PALE_OAK_SLAB));
+        uShaped(recipes, DefaultMaterials.BAMBOO_BARREL.getItem(), ingredient(Items.BAMBOO_PLANKS), ingredient(Items.BAMBOO_SLAB));
+        uShaped(recipes, DefaultMaterials.CRIMSON_BARREL.getItem(), ingredient(Items.CRIMSON_PLANKS), ingredient(Items.CRIMSON_SLAB));
+        uShaped(recipes, DefaultMaterials.WARPED_BARREL.getItem(), ingredient(Items.WARPED_PLANKS), ingredient(Items.WARPED_SLAB));
+        uShaped(recipes, DefaultMaterials.STONE_BARREL.getItem(), ingredient(Items.STONE), ingredient(Items.STONE_SLAB));
+        // Modded barrels
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.FIR_PLANKS_ITEM, ModCompatData.FIR_SLAB, DefaultMaterials.FIR_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.REDWOOD_PLANKS_ITEM, ModCompatData.REDWOOD_SLAB, DefaultMaterials.REDWOOD_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.MAHOGANY_PLANKS_ITEM, ModCompatData.MAHOGANY_SLAB, DefaultMaterials.MAHOGANY_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.JACARANDA_PLANKS_ITEM, ModCompatData.JACARANDA_SLAB, DefaultMaterials.JACARANDA_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.PALM_PLANKS_ITEM, ModCompatData.PALM_SLAB, DefaultMaterials.PALM_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.WILLOW_PLANKS_ITEM, ModCompatData.WILLOW_SLAB, DefaultMaterials.WILLOW_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.DEAD_PLANKS_ITEM, ModCompatData.DEAD_SLAB, DefaultMaterials.DEAD_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.MAGIC_PLANKS_ITEM, ModCompatData.MAGIC_SLAB, DefaultMaterials.MAGIC_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.UMBRAN_PLANKS_ITEM, ModCompatData.UMBRAN_SLAB, DefaultMaterials.UMBRAN_BARREL.getItem());
+        modUShaped(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.HELLBARK_PLANKS_ITEM, ModCompatData.HELLBARK_SLAB, DefaultMaterials.HELLBARK_BARREL.getItem());
+        modUShaped(recipes, ModIds.ARS_NOUVEAU, ModCompatData.ARCHWOOD_PLANKS_ITEM, ModCompatData.ARCHWOOD_SLAB, DefaultMaterials.ARCHWOOD_BARREL.getItem());
+        modUShaped(recipes, ModIds.AETHER, ModCompatData.SKYROOT_PLANKS_ITEM, ModCompatData.SKYROOT_SLAB, DefaultMaterials.SKYROOT_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.BLUEBRIGHT_PLANKS_ITEM, ModCompatData.BLUEBRIGHT_SLAB, DefaultMaterials.BLUEBRIGHT_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.STARLIT_PLANKS_ITEM, ModCompatData.STARLIT_SLAB, DefaultMaterials.STARLIT_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.FROSTBRIGHT_PLANKS_ITEM, ModCompatData.FROSTBRIGHT_SLAB, DefaultMaterials.FROSTBRIGHT_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.COMET_PLANKS_ITEM, ModCompatData.COMET_SLAB, DefaultMaterials.COMET_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.LUNAR_PLANKS_ITEM, ModCompatData.LUNAR_SLAB, DefaultMaterials.LUNAR_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.DUSK_PLANKS_ITEM, ModCompatData.DUSK_SLAB, DefaultMaterials.DUSK_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.MAPLE_PLANKS_ITEM, ModCompatData.MAPLE_SLAB, DefaultMaterials.MAPLE_BARREL.getItem());
+        modUShaped(recipes, ModIds.BLUE_SKIES, ModCompatData.CRYSTALLIZED_PLANKS_ITEM, ModCompatData.CRYSTALLIZED_SLAB, DefaultMaterials.CRYSTALLIZED_BARREL.getItem());
+
+        // Pebbles and ore chunks
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.COBBLESTONE, ingredient(EItems.STONE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.ANDESITE, ingredient(EItems.ANDESITE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.DIORITE, ingredient(EItems.DIORITE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.GRANITE, ingredient(EItems.GRANITE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.COBBLED_DEEPSLATE, ingredient(EItems.DEEPSLATE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.TUFF, ingredient(EItems.TUFF_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.CALCITE, ingredient(EItems.CALCITE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.BLACKSTONE, ingredient(EItems.BLACKSTONE_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.BASALT, ingredient(EItems.BASALT_PEBBLE));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.IRON_ORE, ingredient(EItems.IRON_ORE_CHUNK));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.GOLD_ORE, ingredient(EItems.GOLD_ORE_CHUNK));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.COPPER_ORE, ingredient(EItems.COPPER_ORE_CHUNK));
+        recipes.grid2x2(RecipeCategory.BUILDING_BLOCKS, Items.MOSS_BLOCK, ingredient(EItems.GRASS_SEEDS));
+
+        // Compressed hammers
+        recipes.grid3x3(RecipeCategory.TOOLS, EItems.COMPRESSED_WOODEN_HAMMER.get(), ingredient(EItems.WOODEN_HAMMER));
+        recipes.grid3x3(RecipeCategory.TOOLS, EItems.COMPRESSED_STONE_HAMMER.get(), ingredient(EItems.STONE_HAMMER));
+        recipes.grid3x3(RecipeCategory.TOOLS, EItems.COMPRESSED_GOLDEN_HAMMER.get(), ingredient(EItems.GOLDEN_HAMMER));
+        recipes.grid3x3(RecipeCategory.TOOLS, EItems.COMPRESSED_IRON_HAMMER.get(), ingredient(EItems.IRON_HAMMER));
+        recipes.grid3x3(RecipeCategory.TOOLS, EItems.COMPRESSED_DIAMOND_HAMMER.get(), ingredient(EItems.DIAMOND_HAMMER));
+        recipes.grid3x3(RecipeCategory.TOOLS, EItems.COMPRESSED_NETHERITE_HAMMER.get(), ingredient(EItems.NETHERITE_HAMMER));
+
+        // Compressed blocks
+        for (var variant : ECompressedBlocks.ALL_VARIANTS) {
+            var storage = variant.getBlock();
+            var material = variant.getBase();
+
+            // Auto disable my recipe when other "compressed" mods are present
+            if (variant.hasCompressium() || variant.hasAtc()) {
+                var conditions = new ArrayList<ICondition>();
+                if (variant.hasAtc()) {
+                    conditions.add(modNotInstalled(ModIds.ALL_THE_COMPRESSED));
+                }
+                if (variant.hasCompressium()) {
+                    conditions.add(modNotInstalled(ModIds.COMPRESSIUM));
+                }
+                recipes.conditional(path(storage), conditions, newWriter -> recipes.grid3x3(RecipeCategory.BUILDING_BLOCKS, storage, Ingredient.of(material)));
+            } else {
+                recipes.grid3x3(RecipeCategory.BUILDING_BLOCKS, storage, Ingredient.of(material));
+            }
+            // still allow uncrafting
+            recipes.shapelessCrafting(id(material).withSuffix("_from_" + id(storage).getPath()), RecipeCategory.MISC, material, 9, storage);
+        }
+
+        // Compressed sieves
+        compressedSieve(recipes, DefaultMaterials.OAK_COMPRESSED_SIEVE, ingredient(Items.OAK_LOG));
+        compressedSieve(recipes, DefaultMaterials.SPRUCE_COMPRESSED_SIEVE, ingredient(Items.SPRUCE_LOG));
+        compressedSieve(recipes, DefaultMaterials.BIRCH_COMPRESSED_SIEVE, ingredient(Items.BIRCH_LOG));
+        compressedSieve(recipes, DefaultMaterials.JUNGLE_COMPRESSED_SIEVE, ingredient(Items.JUNGLE_LOG));
+        compressedSieve(recipes, DefaultMaterials.ACACIA_COMPRESSED_SIEVE, ingredient(Items.ACACIA_LOG));
+        compressedSieve(recipes, DefaultMaterials.DARK_OAK_COMPRESSED_SIEVE, ingredient(Items.DARK_OAK_LOG));
+        compressedSieve(recipes, DefaultMaterials.MANGROVE_COMPRESSED_SIEVE, ingredient(Items.MANGROVE_LOG));
+        compressedSieve(recipes, DefaultMaterials.CHERRY_COMPRESSED_SIEVE, ingredient(Items.CHERRY_LOG));
+        compressedSieve(recipes, DefaultMaterials.PALE_OAK_COMPRESSED_SIEVE, ingredient(Items.PALE_OAK_LOG));
+        compressedSieve(recipes, DefaultMaterials.BAMBOO_COMPRESSED_SIEVE, ingredient(Items.BAMBOO_BLOCK));
+        compressedSieve(recipes, DefaultMaterials.WARPED_COMPRESSED_SIEVE, ingredient(Items.WARPED_STEM));
+        compressedSieve(recipes, DefaultMaterials.CRIMSON_COMPRESSED_SIEVE, ingredient(Items.CRIMSON_STEM));
+
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.FIR_COMPRESSED_SIEVE, ingredient(ModCompatData.FIR_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.REDWOOD_COMPRESSED_SIEVE, ingredient(ModCompatData.REDWOOD_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.MAHOGANY_COMPRESSED_SIEVE, ingredient(ModCompatData.MAHOGANY_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.JACARANDA_COMPRESSED_SIEVE, ingredient(ModCompatData.JACARANDA_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.PALM_COMPRESSED_SIEVE, ingredient(ModCompatData.PALM_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.WILLOW_COMPRESSED_SIEVE, ingredient(ModCompatData.WILLOW_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.DEAD_COMPRESSED_SIEVE, ingredient(ModCompatData.DEAD_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.MAGIC_COMPRESSED_SIEVE, ingredient(ModCompatData.MAGIC_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.UMBRAN_COMPRESSED_SIEVE, ingredient(ModCompatData.UMBRAN_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BIOMES_O_PLENTY, DefaultMaterials.HELLBARK_COMPRESSED_SIEVE, ingredient(ModCompatData.HELLBARK_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.ARS_NOUVEAU, DefaultMaterials.CASCADING_ARCHWOOD_COMPRESSED_SIEVE, ingredient(ModCompatData.CASCADING_ARCHWOOD_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.ARS_NOUVEAU, DefaultMaterials.BLAZING_ARCHWOOD_COMPRESSED_SIEVE, ingredient(ModCompatData.BLAZING_ARCHWOOD_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.ARS_NOUVEAU, DefaultMaterials.VEXING_ARCHWOOD_COMPRESSED_SIEVE, ingredient(ModCompatData.VEXING_ARCHWOOD_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.ARS_NOUVEAU, DefaultMaterials.FLOURISHING_ARCHWOOD_COMPRESSED_SIEVE, ingredient(ModCompatData.FLOURISHING_ARCHWOOD_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.AETHER, DefaultMaterials.SKYROOT_COMPRESSED_SIEVE, ingredient(ModCompatData.SKYROOT_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.AETHER, DefaultMaterials.GOLDEN_OAK_COMPRESSED_SIEVE, ingredient(ModCompatData.GOLDEN_OAK_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.BLUEBRIGHT_COMPRESSED_SIEVE, ingredient(ModCompatData.BLUEBRIGHT_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.STARLIT_COMPRESSED_SIEVE, ingredient(ModCompatData.STARLIT_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.FROSTBRIGHT_COMPRESSED_SIEVE, ingredient(ModCompatData.FROSTBRIGHT_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.COMET_COMPRESSED_SIEVE, ingredient(ModCompatData.COMET_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.LUNAR_COMPRESSED_SIEVE, ingredient(ModCompatData.LUNAR_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.DUSK_COMPRESSED_SIEVE, ingredient(ModCompatData.DUSK_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.MAPLE_COMPRESSED_SIEVE, ingredient(ModCompatData.MAPLE_LOG_ITEM));
+        modCompressedSieve(recipes, ModIds.BLUE_SKIES, DefaultMaterials.CRYSTALLIZED_COMPRESSED_SIEVE, ingredient(ModCompatData.CRYSTALLIZED_LOG_ITEM));
+
+        // Modded ores
+        grid2x2TagResult(writer, EItemTags.ORES_ALUMINUM, ingredient(EItems.ALUMINUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_COBALT, ingredient(EItems.COBALT_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_SILVER, ingredient(EItems.SILVER_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_LEAD, ingredient(EItems.LEAD_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_PLATINUM, ingredient(EItems.PLATINUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_NICKEL, ingredient(EItems.NICKEL_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_URANIUM, ingredient(EItems.URANIUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_OSMIUM, ingredient(EItems.OSMIUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_TIN, ingredient(EItems.TIN_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_ZINC, ingredient(EItems.ZINC_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_IRIDIUM, ingredient(EItems.IRIDIUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_THORIUM, ingredient(EItems.THORIUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_MAGNESIUM, ingredient(EItems.MAGNESIUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_LITHIUM, ingredient(EItems.LITHIUM_ORE_CHUNK));
+        grid2x2TagResult(writer, EItemTags.ORES_BORON, ingredient(EItems.BORON_ORE_CHUNK));
+
+        // Sieves
+        sieve(recipes, DefaultMaterials.OAK_SIEVE.getItem(), Items.OAK_PLANKS, Items.OAK_SLAB);
+        sieve(recipes, DefaultMaterials.SPRUCE_SIEVE.getItem(), Items.SPRUCE_PLANKS, Items.SPRUCE_SLAB);
+        sieve(recipes, DefaultMaterials.BIRCH_SIEVE.getItem(), Items.BIRCH_PLANKS, Items.BIRCH_SLAB);
+        sieve(recipes, DefaultMaterials.JUNGLE_SIEVE.getItem(), Items.JUNGLE_PLANKS, Items.JUNGLE_SLAB);
+        sieve(recipes, DefaultMaterials.ACACIA_SIEVE.getItem(), Items.ACACIA_PLANKS, Items.ACACIA_SLAB);
+        sieve(recipes, DefaultMaterials.DARK_OAK_SIEVE.getItem(), Items.DARK_OAK_PLANKS, Items.DARK_OAK_SLAB);
+        sieve(recipes, DefaultMaterials.MANGROVE_SIEVE.getItem(), Items.MANGROVE_PLANKS, Items.MANGROVE_SLAB);
+        sieve(recipes, DefaultMaterials.CHERRY_SIEVE.getItem(), Items.CHERRY_PLANKS, Items.CHERRY_SLAB);
+        sieve(recipes, DefaultMaterials.PALE_OAK_SIEVE.getItem(), Items.PALE_OAK_PLANKS, Items.PALE_OAK_SLAB);
+        sieve(recipes, DefaultMaterials.BAMBOO_SIEVE.getItem(), Items.BAMBOO_PLANKS, Items.BAMBOO_SLAB);
+        sieve(recipes, DefaultMaterials.CRIMSON_SIEVE.getItem(), Items.CRIMSON_PLANKS, Items.CRIMSON_SLAB);
+        sieve(recipes, DefaultMaterials.WARPED_SIEVE.getItem(), Items.WARPED_PLANKS, Items.WARPED_SLAB);
+        // Modded sieves
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.FIR_PLANKS_ITEM, ModCompatData.FIR_SLAB, DefaultMaterials.FIR_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.REDWOOD_PLANKS_ITEM, ModCompatData.REDWOOD_SLAB, DefaultMaterials.REDWOOD_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.MAHOGANY_PLANKS_ITEM, ModCompatData.MAHOGANY_SLAB, DefaultMaterials.MAHOGANY_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.JACARANDA_PLANKS_ITEM, ModCompatData.JACARANDA_SLAB, DefaultMaterials.JACARANDA_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.PALM_PLANKS_ITEM, ModCompatData.PALM_SLAB, DefaultMaterials.PALM_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.WILLOW_PLANKS_ITEM, ModCompatData.WILLOW_SLAB, DefaultMaterials.WILLOW_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.DEAD_PLANKS_ITEM, ModCompatData.DEAD_SLAB, DefaultMaterials.DEAD_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.MAGIC_PLANKS_ITEM, ModCompatData.MAGIC_SLAB, DefaultMaterials.MAGIC_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.UMBRAN_PLANKS_ITEM, ModCompatData.UMBRAN_SLAB, DefaultMaterials.UMBRAN_SIEVE.getItem());
+        modSieve(recipes, ModIds.BIOMES_O_PLENTY, ModCompatData.HELLBARK_PLANKS_ITEM, ModCompatData.HELLBARK_SLAB, DefaultMaterials.HELLBARK_SIEVE.getItem());
+        modSieve(recipes, ModIds.ARS_NOUVEAU, ModCompatData.ARCHWOOD_PLANKS_ITEM, ModCompatData.ARCHWOOD_SLAB, DefaultMaterials.ARCHWOOD_SIEVE.getItem());
+        modSieve(recipes, ModIds.AETHER, ModCompatData.SKYROOT_PLANKS_ITEM, ModCompatData.SKYROOT_SLAB, DefaultMaterials.SKYROOT_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.BLUEBRIGHT_PLANKS_ITEM, ModCompatData.BLUEBRIGHT_SLAB, DefaultMaterials.BLUEBRIGHT_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.STARLIT_PLANKS_ITEM, ModCompatData.STARLIT_SLAB, DefaultMaterials.STARLIT_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.FROSTBRIGHT_PLANKS_ITEM, ModCompatData.FROSTBRIGHT_SLAB, DefaultMaterials.FROSTBRIGHT_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.COMET_PLANKS_ITEM, ModCompatData.COMET_SLAB, DefaultMaterials.COMET_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.LUNAR_PLANKS_ITEM, ModCompatData.LUNAR_SLAB, DefaultMaterials.LUNAR_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.DUSK_PLANKS_ITEM, ModCompatData.DUSK_SLAB, DefaultMaterials.DUSK_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.MAPLE_PLANKS_ITEM, ModCompatData.MAPLE_SLAB, DefaultMaterials.MAPLE_SIEVE.getItem());
+        modSieve(recipes, ModIds.BLUE_SKIES, ModCompatData.CRYSTALLIZED_PLANKS_ITEM, ModCompatData.CRYSTALLIZED_SLAB, DefaultMaterials.CRYSTALLIZED_SIEVE.getItem());
+
+        // Meshes
+        recipes.grid3x3(EItems.STRING_MESH.get(), recipes.ingredient(Tags.Items.STRINGS));
+        mesh(recipes, EItems.FLINT_MESH, ingredient(Items.FLINT));
+        mesh(recipes, EItems.IRON_MESH, recipes.ingredient(Tags.Items.INGOTS_IRON));
+        mesh(recipes, EItems.GOLDEN_MESH, recipes.ingredient(Tags.Items.INGOTS_GOLD));
+        mesh(recipes, EItems.DIAMOND_MESH, recipes.ingredient(Tags.Items.GEMS_DIAMOND));
+        meshUpgrade(recipes, EItems.FLINT_MESH, EItems.STRING_MESH, ingredient(Items.FLINT));
+        meshUpgrade(recipes, EItems.IRON_MESH, EItems.FLINT_MESH, recipes.ingredient(Tags.Items.INGOTS_IRON));
+        meshUpgrade(recipes, EItems.GOLDEN_MESH, EItems.IRON_MESH, recipes.ingredient(Tags.Items.INGOTS_GOLD));
+        meshUpgrade(recipes, EItems.DIAMOND_MESH, EItems.GOLDEN_MESH, recipes.ingredient(Tags.Items.GEMS_DIAMOND));
+        recipes.netheriteUpgrade(RecipeCategory.MISC, ingredient(EItems.DIAMOND_MESH), EItems.NETHERITE_MESH.get());
+
+        // Watering cans
+        wateringCan(recipes, EItems.WOODEN_WATERING_CAN, recipes.ingredient(ItemTags.PLANKS));
+        wateringCan(recipes, EItems.STONE_WATERING_CAN, recipes.ingredient(ItemTags.STONE_TOOL_MATERIALS));
+        wateringCan(recipes, EItems.COPPER_WATERING_CAN, recipes.ingredient(Tags.Items.INGOTS_COPPER));
+        wateringCan(recipes, EItems.IRON_WATERING_CAN, recipes.ingredient(Tags.Items.INGOTS_IRON));
+        wateringCan(recipes, EItems.GOLDEN_WATERING_CAN, recipes.ingredient(Tags.Items.INGOTS_GOLD));
+        wateringCan(recipes, EItems.DIAMOND_WATERING_CAN, recipes.ingredient(Tags.Items.GEMS_DIAMOND));
+        recipes.netheriteUpgrade(RecipeCategory.TOOLS, ingredient(EItems.DIAMOND_WATERING_CAN), EItems.NETHERITE_WATERING_CAN.get());
+
+        // misc
+        recipes.shapelessCrafting(RecipeCategory.MISC, EItems.PORCELAIN_CLAY_BALL.get(), 1, ingredient(Items.CLAY_BALL), ingredient(Items.BONE_MEAL));
+        recipes.shapedCrafting(RecipeCategory.MISC, EItems.UNFIRED_PORCELAIN_BUCKET.get(), recipe -> {
+            recipe.define('#', EItems.PORCELAIN_CLAY_BALL);
+            recipe.pattern("# #");
+            recipe.pattern(" # ");
+        });
+        recipes.shapedCrafting(RecipeCategory.MISC, EItems.SCULK_CORE.get(), recipe -> {
+            recipe.define('#', Items.ECHO_SHARD);
+            recipe.define('O', Items.ENDER_PEARL);
+            recipe.pattern(" # ");
+            recipe.pattern("#O#");
+            recipe.pattern(" # ");
+        });
+        recipes.shapedCrafting(RecipeCategory.MISC, EItems.CREAKING_CORE.get(), recipe -> {
+            recipe.define('#', Items.RESIN_CLUMP);
+            recipe.define('O', Items.ENDER_PEARL);
+            recipe.pattern(" # ");
+            recipe.pattern("#O#");
+            recipe.pattern(" # ");
+        });
+        recipes.shapedCrafting(RecipeCategory.FOOD, EItems.END_CAKE.get(), recipe -> {
+            recipe.define('P', Items.ENDER_EYE);
+            recipe.define('S', Items.SUGAR);
+            recipe.define('E', Tags.Items.EGGS);
+            recipe.define('C', EItems.CRUSHED_END_STONE);
+            recipe.pattern("PPP");
+            recipe.pattern("SES");
+            recipe.pattern("CCC");
+        });
+        recipes.shapedCrafting(RecipeCategory.BUILDING_BLOCKS, Items.SPONGE, recipe -> {
+            recipe.define('S', Blocks.SLIME_BLOCK);
+            recipe.define('W', ItemTags.WOOL);
+            recipe.define('C', EItems.WOOD_CHIPPINGS);
+            recipe.pattern("WCW");
+            recipe.pattern("CSC");
+            recipe.pattern("WCW");
+            recipes.unlockedByHaving(recipe, EItems.WOOD_CHIPPINGS.get());
+        });
+        recipes.shapedCrafting(RecipeCategory.MISC, EItems.MECHANICAL_SIEVE.get(), recipe -> {
+            recipe.define('#', Items.IRON_BLOCK);
+            recipe.define('G', Items.GLASS);
+            recipe.define('H', Items.HOPPER);
+            recipe.define('I', Items.IRON_BARS);
+            recipe.pattern("#G#");
+            recipe.pattern("IHI");
+            recipe.pattern("I I");
+            recipes.unlockedByHaving(recipe, Items.HOPPER);
+        });
+        recipes.shapedCrafting(RecipeCategory.MISC, EItems.MECHANICAL_HAMMER.get(), recipe -> {
+            recipe.define('#', Items.IRON_BLOCK);
+            recipe.define('H', Items.HOPPER);
+            recipe.define('T', EItemTags.HAMMERS);
+            recipe.define('I', Items.IRON_INGOT);
+            recipe.pattern("III");
+            recipe.pattern("ITI");
+            recipe.pattern("#H#");
+            recipes.unlockedByHaving(recipe, Items.HOPPER);
+        });
+    }
+
+    private static void modUShaped(MKRecipeProvider recipes, String modid, ItemLike sides, ItemLike middle, Item result) {
+        recipes.conditional(path(result), List.of(modInstalled(modid)), writer1 -> uShaped(recipes, result, ingredient(sides), ingredient(middle)));
+    }
+
+    private static void modSieve(MKRecipeProvider recipes, String modid, ItemLike planks, ItemLike slab, Item result) {
+        recipes.conditional(path(result), List.of(modInstalled(modid)), writer1 -> sieve(recipes, result, planks, slab));
+    }
+
+    private static void grid2x2TagResult(RecipeOutput writer, TagKey<Item> resultTag, Ingredient ingredient) {
+        writer.withConditions(tagNotEmpty(resultTag)).accept(ResourceKey.create(Registries.RECIPE, modLoc(resultTag.location().getPath() + "_from_chunks")), new OreChunkRecipe(ingredient, resultTag), null);
+    }
+
+    private static void shapedCrook(MKRecipeProvider recipes, ItemLike crook, Ingredient stick) {
+        recipes.shapedCrafting(RecipeCategory.TOOLS, crook, recipe -> {
+            recipe.define('x', stick);
+            recipe.pattern("xx");
+            recipe.pattern(" x");
+            recipe.pattern(" x");
+        });
+    }
+
+    private static void shapedHammer(MKRecipeProvider recipes, ItemLike hammer, Ingredient material) {
+        recipes.shapedCrafting(RecipeCategory.TOOLS, hammer, recipe -> {
+            recipe.define('m', material);
+            recipe.define('s', Tags.Items.RODS_WOODEN);
+            recipe.pattern(" m ");
+            recipe.pattern(" sm");
+            recipe.pattern("s  ");
+        });
+    }
+
+    private static void uShaped(MKRecipeProvider recipes, Item result, Ingredient sides, Ingredient middle) {
+        recipes.shapedCrafting(RecipeCategory.MISC, result, recipe -> {
+            recipe.define('s', sides);
+            recipe.define('m', middle);
+            recipe.pattern("s s");
+            recipe.pattern("s s");
+            recipe.pattern("sms");
+        });
+    }
+
+    private static void sieve(MKRecipeProvider recipes, ItemLike result, ItemLike planks, ItemLike slab) {
+        recipes.shapedCrafting(RecipeCategory.MISC, result, recipe -> {
+            recipe.define('O', planks);
+            recipe.define('_', slab);
+            recipe.define('I', Tags.Items.RODS_WOODEN);
+            recipe.pattern("O O");
+            recipe.pattern("O_O");
+            recipe.pattern("I I");
+        });
+    }
+
+    private static void compressedSieve(MKRecipeProvider recipes, ItemLike result, Ingredient log) {
+        recipes.shapedCrafting(RecipeCategory.MISC, result.asItem(), recipe -> {
+            recipe.define('O', log);
+            recipe.define('I', Tags.Items.RODS_WOODEN);
+            recipe.define('_', Tags.Items.INGOTS_IRON);
+            recipe.pattern("O O");
+            recipe.pattern("O_O");
+            recipe.pattern("I I");
+        });
+    }
+
+    private static void modCompressedSieve(MKRecipeProvider recipes, String modid, ItemLike result, Ingredient log) {
+        recipes.conditional(path(result), List.of(modInstalled(modid)), writer1 -> compressedSieve(recipes, result, log));
+    }
+
+    private static void mesh(MKRecipeProvider recipes, Supplier<? extends Item> result, Ingredient ingredient) {
+        recipes.shapedCrafting(RecipeCategory.MISC, result.get(), recipe -> {
+            recipe.define('#', ingredient);
+            recipe.define('S', recipes.ingredient(Tags.Items.STRINGS));
+            recipe.pattern("S#S");
+            recipe.pattern("#S#");
+            recipe.pattern("S#S");
+        });
+    }
+
+    private static void meshUpgrade(MKRecipeProvider recipes, ItemLike newMesh, ItemLike previousMesh, Ingredient ingredient) {
+        recipes.shapedCrafting(path(newMesh) + "_from_" + path(previousMesh), RecipeCategory.MISC, newMesh, recipe -> {
+            recipe.define('#', ingredient);
+            recipe.define('M', previousMesh);
+            recipe.pattern(" # ");
+            recipe.pattern("#M#");
+            recipe.pattern(" # ");
+        });
+    }
+
+    private static void wateringCan(MKRecipeProvider recipes, Supplier<? extends Item> result, Ingredient shell) {
+        recipes.shapedCrafting(RecipeCategory.TOOLS, result.get(), recipe -> {
+            recipe.define('#', shell);
+            recipe.define('B', Items.BOWL);
+            recipe.pattern("#  ");
+            recipe.pattern("#B#");
+            recipe.pattern(" # ");
+        });
+    }
+
+    private static void smeltingRecipes(MKRecipeProvider recipes) {
+        recipes.smelting(ingredient(EItems.UNFIRED_PORCELAIN_CRUCIBLE), DefaultMaterials.PORCELAIN_CRUCIBLE.getItem(), 0.1f);
+        recipes.smelting(ingredient(EItems.UNFIRED_PORCELAIN_BUCKET), EItems.PORCELAIN_BUCKET.get(), 0.1f);
+
+        recipes.foodCooking(EItems.SILKWORM.get(), EItems.COOKED_SILKWORM.get(), 0.1f);
+    }
+
+    private static void crucibleRecipes(RecipeOutput writer, MKRecipeProvider recipes) {
+        lavaCrucible(writer, "cobblestone", recipes.ingredient(Tags.Items.COBBLESTONES), 250);
+        lavaCrucible(writer, "stone", recipes.ingredient(Tags.Items.STONES), 250);
+        lavaCrucible(writer, "gravel", recipes.ingredient(Tags.Items.GRAVELS), 250);
+        lavaCrucible(writer, "netherrack", recipes.ingredient(Tags.Items.NETHERRACKS), 500);
+
+        waterCrucible(writer, "saplings", recipes.ingredient(ItemTags.SAPLINGS), 100);
+        waterCrucible(writer, "leaves", recipes.ingredient(ItemTags.LEAVES), 250);
+        waterCrucible(writer, "small_flowers", recipes.ingredient(BlockItemTags.SMALL_FLOWERS.item()), 100);
+        waterCrucible(writer, "tall_flowers", recipes.ingredient(TALL_FLOWERS), 200);
+        waterCrucible(writer, "mushrooms", recipes.ingredient(Tags.Items.MUSHROOMS), 100);
+        waterCrucible(writer, "lily_pad", ingredient(Items.LILY_PAD), 150);
+        waterCrucible(writer, "sugar_cane", ingredient(Items.SUGAR_CANE), 100);
+        waterCrucible(writer, "vine", ingredient(Items.VINE), 100);
+        waterCrucible(writer, "seeds_and_spores", SPORES_AND_SEEDS, 50);
+        waterCrucible(writer, "seeds", recipes.ingredient(Tags.Items.SEEDS), 50);
+        waterCrucible(writer, "grass", ingredient(Items.SHORT_GRASS, Items.TALL_GRASS, Items.DRY_SHORT_GRASS, Items.DRY_TALL_GRASS), 100);
+        waterCrucible(writer, "bush", ingredient(Items.BUSH, Items.FIREFLY_BUSH), 100);
+        waterCrucible(writer, "leaf_litter", ingredient(Items.LEAF_LITTER), 100);
+        waterCrucible(writer, "wildflowers", ingredient(Items.WILDFLOWERS), 100);
+        waterCrucible(writer, "cactus_flower", ingredient(Items.CACTUS_FLOWER), 100);
+        waterCrucible(writer, "grass_block", ingredient(Items.GRASS_BLOCK), 150);
+        waterCrucible(writer, "sweet_berries", ingredient(Items.SWEET_BERRIES, Items.GLOW_BERRIES), 50);
+        waterCrucible(writer, "melon_slice", ingredient(Items.MELON_SLICE), 50);
+        waterCrucible(writer, "potato", ingredient(Items.POTATO), 100);
+        waterCrucible(writer, "carrot", ingredient(Items.CARROT), 100);
+        waterCrucible(writer, "beetroot", ingredient(Items.BEETROOT), 100);
+        waterCrucible(writer, "apple", ingredient(Items.APPLE), 100);
+        waterCrucible(writer, "cactus", ingredient(Items.CACTUS), 250);
+        waterCrucible(writer, "pumpkin", ingredient(Items.PUMPKIN), 250);
+        waterCrucible(writer, "melon", ingredient(Items.MELON), 250);
+        waterCrucible(writer, "seagrass", ingredient(Items.SEAGRASS), 100);
+        waterCrucible(writer, "sea_pickle", ingredient(Items.SEA_PICKLE), 200);
+        waterCrucible(writer, "moss", ingredient(Items.MOSS_BLOCK, Items.PALE_MOSS_BLOCK), 150);
+        waterCrucible(writer, "moss_carpet", ingredient(Items.MOSS_CARPET, Items.PALE_MOSS_CARPET), 100);
+        waterCrucible(writer, "hanging_moss", ingredient(Items.PALE_HANGING_MOSS), 100);
+        waterCrucible(writer, "spore_blossom", ingredient(Items.SPORE_BLOSSOM), 150);
+    }
+
+    private static void lavaCrucible(RecipeOutput writer, String id, Ingredient ingredient, int volume) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("lava_crucible/" + id)), new CrucibleRecipe.Lava(ingredient, new FluidStackTemplate(Fluids.LAVA, volume)), null);
+    }
+
+    private static void waterCrucible(RecipeOutput writer, String id, Ingredient ingredient, int volume) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("water_crucible/" + id)), new CrucibleRecipe.Water(ingredient, new FluidStackTemplate(Fluids.WATER, volume)), null);
+    }
+
+    private static void hammerRecipes(RecipeOutput writer, MKRecipeProvider recipes) {
+        // Cobblestone -> Gravel -> Sand -> Dust
+        hammerRecipe(writer, "gravel", ingredient(Items.COBBLESTONE, Items.DIORITE, Items.GRANITE, Items.ANDESITE), Blocks.GRAVEL);
+        hammerRecipe(writer, "sand", ingredient(Items.GRAVEL), Blocks.SAND);
+        hammerRecipe(writer, "dust", ingredient(Items.SAND, Items.RED_SAND), EBlocks.DUST.get());
+
+        hammerRecipe(writer, "crushed_deepslate", ingredient(Blocks.DEEPSLATE, Blocks.COBBLED_DEEPSLATE), EBlocks.CRUSHED_DEEPSLATE.get());
+        hammerRecipe(writer, "crushed_netherrack", ingredient(Blocks.NETHERRACK), EBlocks.CRUSHED_NETHERRACK.get());
+        hammerRecipe(writer, "crushed_blackstone", ingredient(Blocks.BLACKSTONE), EBlocks.CRUSHED_BLACKSTONE.get());
+        hammerRecipe(writer, "crushed_end_stone", ingredient(Blocks.END_STONE), EBlocks.CRUSHED_END_STONE.get());
+        hammerRecipe(writer, "red_sand", ingredient(EBlocks.CRUSHED_NETHERRACK), Blocks.RED_SAND);
+
+        hammerRecipe(writer, "crushing_sandstone", ingredient(Items.SANDSTONE, Items.CUT_SANDSTONE, Items.CHISELED_SANDSTONE, Items.SMOOTH_SANDSTONE), Items.SAND);
+        hammerRecipe(writer, "crushing_red_sandstone", ingredient(Items.RED_SANDSTONE, Items.CUT_RED_SANDSTONE, Items.CHISELED_RED_SANDSTONE, Items.SMOOTH_RED_SANDSTONE), Items.RED_SAND);
+        hammerRecipe(writer, "crushing_stone_bricks", ingredient(Items.STONE_BRICKS), Items.CRACKED_STONE_BRICKS);
+
+        hammerRecipe(writer, "stone_pebbles", ingredient(Items.STONE, Items.STONE_BRICKS, Items.CHISELED_STONE_BRICKS, Items.CRACKED_STONE_BRICKS), EItems.STONE_PEBBLE.get(), new UniformGenerator(ConstantValue.exactly(1), ConstantValue.exactly(6)));
+        hammerRecipe(writer, "basalt", ingredient(Items.POLISHED_BASALT, Items.SMOOTH_BASALT), Items.BASALT);
+        hammerRecipe(writer, "wood_chippings", recipes.ingredient(ItemTags.LOGS), EItems.WOOD_CHIPPINGS.get(), new UniformGenerator(ConstantValue.exactly(3), ConstantValue.exactly(8)));
+
+        hammerRecipe(writer, "tube_coral", ingredient(Items.TUBE_CORAL_BLOCK), Items.TUBE_CORAL);
+        hammerRecipe(writer, "brain_coral", ingredient(Items.BRAIN_CORAL_BLOCK), Items.BRAIN_CORAL);
+        hammerRecipe(writer, "bubble_coral", ingredient(Items.BUBBLE_CORAL_BLOCK), Items.BUBBLE_CORAL);
+        hammerRecipe(writer, "fire_coral", ingredient(Items.FIRE_CORAL_BLOCK), Items.FIRE_CORAL);
+        hammerRecipe(writer, "horn_coral", ingredient(Items.HORN_CORAL_BLOCK), Items.HORN_CORAL);
+        hammerRecipe(writer, "tube_coral_fan", ingredient(Items.TUBE_CORAL), Items.TUBE_CORAL_FAN);
+        hammerRecipe(writer, "brain_coral_fan", ingredient(Items.BRAIN_CORAL), Items.BRAIN_CORAL_FAN);
+        hammerRecipe(writer, "bubble_coral_fan", ingredient(Items.BUBBLE_CORAL), Items.BUBBLE_CORAL_FAN);
+        hammerRecipe(writer, "fire_coral_fan", ingredient(Items.FIRE_CORAL), Items.FIRE_CORAL_FAN);
+        hammerRecipe(writer, "horn_coral_fan", ingredient(Items.HORN_CORAL), Items.HORN_CORAL_FAN);
+
+        hammerRecipe(writer, "prismarine", ingredient(Items.PRISMARINE, Items.PRISMARINE_BRICKS, Items.DARK_PRISMARINE), Items.PRISMARINE_SHARD, between(1, 4));
+        hammerRecipe(writer, "pointed_dripstone", ingredient(Items.DRIPSTONE_BLOCK), Items.POINTED_DRIPSTONE, between(2, 4));
+    }
+
+    private static void compressedHammerRecipes(RecipeOutput writer, MKRecipeProvider recipes) {
+        compressedHammerRecipe(writer, Items.GRAVEL, recipes.ingredient(ECompressedBlocks.COMPRESSED_COBBLESTONE.getTag(), ECompressedBlocks.COMPRESSED_DIORITE.getTag(), ECompressedBlocks.COMPRESSED_GRANITE.getTag(), ECompressedBlocks.COMPRESSED_ANDESITE.getTag()));
+        compressedHammerRecipe(writer, Items.SAND, recipes.ingredient(ECompressedBlocks.COMPRESSED_GRAVEL.getTag()));
+        compressedHammerRecipe(writer, EItems.DUST.get(), recipes.ingredient(EItemTags.COMPRESSED_SANDS));
+
+        compressedHammerRecipe(writer, EItems.CRUSHED_DEEPSLATE.get(), recipes.ingredient(ECompressedBlocks.COMPRESSED_DEEPSLATE.getTag(), ECompressedBlocks.COMPRESSED_COBBLED_DEEPSLATE.getTag()));
+        compressedHammerRecipe(writer, EItems.CRUSHED_NETHERRACK.get(), recipes.ingredient(ECompressedBlocks.COMPRESSED_NETHERRACK.getTag()));
+        compressedHammerRecipe(writer, EItems.CRUSHED_BLACKSTONE.get(), recipes.ingredient(ECompressedBlocks.COMPRESSED_BLACKSTONE.getTag()));
+        compressedHammerRecipe(writer, EItems.CRUSHED_END_STONE.get(), recipes.ingredient(ECompressedBlocks.COMPRESSED_END_STONE.getTag()));
+        compressedHammerRecipe(writer, Items.RED_SAND, recipes.ingredient(ECompressedBlocks.COMPRESSED_CRUSHED_NETHERRACK.getTag()));
+    }
+
+    private static void compressedHammerRecipe(RecipeOutput writer, ItemLike result, Ingredient block) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("compressed_hammer/" + path(result))), new CompressedHammerRecipe(block, new ItemStackTemplate(result.asItem()), exactly(9)), null);
+    }
+
+    private static void hammerRecipe(RecipeOutput writer, String name, Ingredient block, ItemLike result) {
+        hammerRecipe(writer, name, block, result, ConstantValue.exactly(1f));
+    }
+
+    private static void hammerRecipe(RecipeOutput writer, String name, Ingredient block, ItemLike result, NumberProvider resultAmount) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("hammer/" + name)), new HammerRecipe(block, new ItemStackTemplate(result.asItem()), resultAmount), null);
+    }
+
+    private static void crookRecipes(RecipeOutput writer) {
+        crookRecipe(writer, "silkworm", BlockPredicate.blockTag(BlockTags.LEAVES), EItems.SILKWORM.get(), 0.01f);
+        @SuppressWarnings("OptionalGetWithoutIsPresent")
+        var fullyInfestedLeaves = BlockPredicate.blockState(EBlocks.INFESTED_LEAVES.get(), StatePropertiesPredicate.Builder.properties().hasProperty(InfestedLeavesBlock.FULLY_INFESTED, true).build().get());
+        crookRecipe(writer, "silkworm_bonus", fullyInfestedLeaves, EItems.SILKWORM.get(), 0.01f);
+        crookRecipe(writer, "string_roll_1", fullyInfestedLeaves, Items.STRING, 0.4f);
+        crookRecipe(writer, "string_roll_2", fullyInfestedLeaves, Items.STRING, 0.1f);
+    }
+
+    private static void crookRecipe(RecipeOutput writer, String name, BlockPredicate blockPredicate, ItemLike result, float chance) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("crook/" + name)), new CrookRecipe(blockPredicate, new ItemStackTemplate(result.asItem()), chance), null);
+    }
+
+    @SuppressWarnings("OptionalGetWithoutIsPresent")
+    private static void crucibleHeatSources(RecipeOutput writer) {
+        crucibleHeatSource(writer, Blocks.TORCH, 1);
+        crucibleHeatSource(writer, Blocks.WALL_TORCH, 1);
+        crucibleHeatSource(writer, Blocks.LANTERN, 1);
+        crucibleHeatSource(writer, Blocks.SOUL_TORCH, 2);
+        crucibleHeatSource(writer, Blocks.SOUL_WALL_TORCH, 2);
+        crucibleHeatSource(writer, Blocks.SOUL_LANTERN, 2);
+        crucibleHeatSource(writer, Blocks.LAVA, 3);
+        crucibleHeatSource(writer, Blocks.FIRE, 5);
+        crucibleHeatSource(writer, Blocks.SOUL_FIRE, 5);
+
+        crucibleHeatSource(writer, "lit_campfire", BlockPredicate.blockState(Blocks.CAMPFIRE, StatePropertiesPredicate.Builder.properties().hasProperty(CampfireBlock.LIT, true).build().get()), 2);
+        crucibleHeatSource(writer, "lit_soul_campfire", BlockPredicate.blockState(Blocks.SOUL_CAMPFIRE, StatePropertiesPredicate.Builder.properties().hasProperty(CampfireBlock.LIT, true).build().get()), 2);
+    }
+
+    private static void crucibleHeatSource(RecipeOutput writer, Block block, int heatValue) {
+        crucibleHeatSource(writer, BuiltInRegistries.BLOCK.getKey(block).getPath(), BlockPredicate.singleBlock(block), heatValue);
+    }
+
+    private static void crucibleHeatSource(RecipeOutput writer, String name, BlockPredicate blockPredicate, int heatValue) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("crucible_heat_source/" + name)), new CrucibleHeatRecipe(blockPredicate, heatValue), null);
+    }
+
+    private static void barrelCompostRecipes(RecipeOutput writer, MKRecipeProvider recipes) {
+        // plants
+        barrelCompost(writer, "saplings", recipes.ingredient(ItemTags.SAPLINGS), 125);
+        barrelCompost(writer, "leaves", recipes.ingredient(ItemTags.LEAVES), 125);
+        barrelCompost(writer, "small_flowers", recipes.ingredient(BlockItemTags.SMALL_FLOWERS.item()), 100);
+        barrelCompost(writer, "tall_flowers", recipes.ingredient(TALL_FLOWERS), 150);
+        barrelCompost(writer, "mushrooms", recipes.ingredient(Tags.Items.MUSHROOMS), 100);
+        barrelCompost(writer, "lily_pad", ingredient(Items.LILY_PAD), 100);
+        barrelCompost(writer, "sugar_cane", ingredient(Items.SUGAR_CANE), 80);
+        barrelCompost(writer, "vine", ingredient(Items.VINE), 100);
+        barrelCompost(writer, "grass", ingredient(Items.SHORT_GRASS, Items.FERN, Items.DRY_SHORT_GRASS), 100);
+        barrelCompost(writer, "tall_grass", ingredient(Items.TALL_GRASS, Items.LARGE_FERN, Items.DRY_TALL_GRASS), 150);
+        barrelCompost(writer, "bush", ingredient(Items.BUSH, Items.FIREFLY_BUSH), 100);
+        barrelCompost(writer, "leaf_litter", ingredient(Items.LEAF_LITTER), 100);
+        barrelCompost(writer, "wildflowers", ingredient(Items.WILDFLOWERS), 100);
+        barrelCompost(writer, "cactus_flower", ingredient(Items.CACTUS_FLOWER), 100);
+        barrelCompost(writer, "seagrass", ingredient(Items.SEAGRASS), 80);
+        barrelCompost(writer, "nether_wart", ingredient(Items.NETHER_WART), 100);
+        barrelCompost(writer, "seeds", recipes.ingredient(Tags.Items.SEEDS), 80);
+        barrelCompost(writer, "wheat", recipes.ingredient(Tags.Items.CROPS_WHEAT), 80);
+        barrelCompost(writer, "berries", ingredient(Items.SWEET_BERRIES, Items.GLOW_BERRIES), 80);
+        barrelCompost(writer, "melon", ingredient(Items.MELON), 200);
+        barrelCompost(writer, "cake", ingredient(Items.CAKE), 500);
+        barrelCompost(writer, "pumpkin", ingredient(Items.PUMPKIN), 500);
+        barrelCompost(writer, "carrots", ingredient(Items.CARROT), 100);
+        barrelCompost(writer, "potatoes", ingredient(Items.POTATO, Items.BAKED_POTATO, Items.POISONOUS_POTATO), 80);
+        barrelCompost(writer, "beetroot", ingredient(Items.BEETROOT), 80);
+        barrelCompost(writer, "moss_block", ingredient(Items.MOSS_BLOCK, Items.PALE_MOSS_BLOCK), 150);
+        barrelCompost(writer, "moss_carpet", ingredient(Items.MOSS_CARPET, Items.PALE_MOSS_CARPET), 100);
+        barrelCompost(writer, "hanging_moss", ingredient(Items.PALE_HANGING_MOSS), 100);
+        barrelCompost(writer, "spores_and_seeds", SPORES_AND_SEEDS, 80);
+        barrelCompost(writer, "bamboo", ingredient(Items.BAMBOO), 100);
+        barrelCompost(writer, "cactus", ingredient(Items.CACTUS), 125);
+        barrelCompost(writer, "dead_bush", ingredient(Items.DEAD_BUSH), 80);
+        barrelCompost(writer, "chorus_flower", ingredient(Items.CHORUS_FLOWER), 150);
+        barrelCompost(writer, "chorus_fruit", ingredient(Items.CHORUS_FRUIT), 80);
+        barrelCompost(writer, "chorus_plant", ingredient(Items.CHORUS_PLANT), 150);
+        barrelCompost(writer, "kelp", ingredient(Items.KELP, Items.DRIED_KELP), 80);
+        barrelCompost(writer, "sea_pickle", ingredient(Items.SEA_PICKLE), 80);
+        barrelCompost(writer, "spore_blossom", ingredient(Items.SPORE_BLOSSOM), 125);
+        barrelCompost(writer, "weeping_vines", ingredient(Items.WEEPING_VINES), 100);
+        barrelCompost(writer, "twisting_vines", ingredient(Items.TWISTING_VINES), 100);
+        barrelCompost(writer, "wood_chippings", ingredient(EItems.WOOD_CHIPPINGS), 125);
+        // flesh
+        barrelCompost(writer, "rotten_flesh", ingredient(Items.ROTTEN_FLESH), 100);
+        barrelCompost(writer, "spider_eye", ingredient(Items.SPIDER_EYE), 80);
+        barrelCompost(writer, "fermented_spider_eye", ingredient(Items.FERMENTED_SPIDER_EYE), 100);
+        barrelCompost(writer, "string", ingredient(Items.STRING), 40);
+        barrelCompost(writer, "rabbit_foot", ingredient(Items.RABBIT_FOOT), 100);
+        // meats
+        barrelCompost(writer, "pork", ingredient(Items.PORKCHOP, Items.COOKED_PORKCHOP), 150);
+        barrelCompost(writer, "beef", ingredient(Items.BEEF, Items.COOKED_BEEF), 150);
+        barrelCompost(writer, "chicken", ingredient(Items.CHICKEN, Items.COOKED_CHICKEN), 125);
+        barrelCompost(writer, "mutton", ingredient(Items.MUTTON, Items.COOKED_MUTTON), 125);
+        barrelCompost(writer, "salmon", ingredient(Items.SALMON, Items.COOKED_SALMON), 125);
+        barrelCompost(writer, "rabbit", ingredient(Items.RABBIT, Items.COOKED_RABBIT), 100);
+        barrelCompost(writer, "cod", ingredient(Items.COD, Items.COOKED_COD), 100);
+        barrelCompost(writer, "tropical_fish", ingredient(Items.TROPICAL_FISH), 80);
+        barrelCompost(writer, "pufferfish", ingredient(Items.PUFFERFISH), 80);
+        barrelCompost(writer, "egg", recipes.ingredient(ItemTags.EGGS), 100);
+        // foods
+        barrelCompost(writer, "melon_slice", ingredient(Items.MELON_SLICE), 40);
+        barrelCompost(writer, "silk_worms", ingredient(EItems.SILKWORM.get(), EItems.COOKED_SILKWORM.get()), 40);
+        barrelCompost(writer, "apple", ingredient(Items.APPLE), 100);
+        barrelCompost(writer, "cookie", ingredient(Items.COOKIE), 100);
+        barrelCompost(writer, "pumpkin_pie", ingredient(Items.PUMPKIN_PIE), 150);
+        barrelCompost(writer, "bread", ingredient(Items.BREAD), 125);
+        barrelCompost(writer, "mushroom_stew", ingredient(Items.MUSHROOM_STEW), 200);
+        barrelCompost(writer, "suspicious_stew", ingredient(Items.SUSPICIOUS_STEW), 200);
+        barrelCompost(writer, "beetroot_soup", ingredient(Items.BEETROOT_SOUP), 150);
+        barrelCompost(writer, "rabbit_stew", ingredient(Items.RABBIT_STEW), 200);
+
+        // lol
+        barrelCompost(writer, "golden_apples", ingredient(Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE), 1000);
+        barrelCompost(writer, "golden_carrot", ingredient(Items.GOLDEN_CARROT), 500);
+    }
+
+    private static void barrelCompost(RecipeOutput writer, String id, Ingredient ingredient, int volume) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("barrel_compost/" + id)), new BarrelCompostRecipe(ingredient, volume), null);
+    }
+
+    private static void barrelMixingRecipes(RecipeOutput writer) {
+        // water
+        barrelMixing(writer, ingredient(EItems.DUST.get()), Fluids.WATER, Items.CLAY);
+        barrelMixing(writer, ingredient(Items.MILK_BUCKET), Fluids.WATER, Items.SLIME_BLOCK);
+        barrelMixing(writer, "_from_porcelain_bucket", ingredient(EItems.PORCELAIN_MILK_BUCKET.get()), Fluids.WATER, Items.SLIME_BLOCK);
+        barrelFluidMixing(writer, Fluids.WATER, NeoForgeMod.MILK.get(), Items.SLIME_BLOCK, true);
+        barrelMixing(writer, ingredient(Items.SNOWBALL), Fluids.WATER, Items.ICE);
+        barrelFluidMixing(writer, Fluids.WATER, Fluids.LAVA, Items.STONE, false);
+        // lava
+        barrelFluidMixing(writer, EFluids.WITCH_WATER.get(), Fluids.LAVA, Items.NETHERRACK, true);
+        barrelFluidMixing(writer, Fluids.LAVA, EFluids.WITCH_WATER.get(), Items.BLACKSTONE, true);
+        barrelMixing(writer, ingredient(Items.GLOWSTONE_DUST), Fluids.LAVA, Items.END_STONE);
+        barrelFluidMixing(writer, Fluids.LAVA, Fluids.WATER, Items.OBSIDIAN, false);
+        barrelMixing(writer, ingredient(Items.SLIME_BALL), Fluids.LAVA, Items.MAGMA_CREAM);
+        barrelMixing(writer, ingredient(Items.SOUL_SAND), Fluids.LAVA, Items.SOUL_SOIL);
+        // witch water
+        barrelMixing(writer, ingredient(Items.SAND), EFluids.WITCH_WATER.get(), Items.SOUL_SAND);
+    }
+
+    private static void barrelMixing(RecipeOutput writer, Ingredient ingredient, Fluid fluidType, Item result) {
+        barrelMixing(writer, "", ingredient, fluidType, result);
+    }
+
+    private static void barrelMixing(RecipeOutput writer, String suffix, Ingredient ingredient, Fluid fluidType, Item result) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("barrel_mixing/" + path(result) + suffix)), new BarrelMixingRecipe(ingredient, SizedFluidIngredient.of(fluidType, 1000), new ItemStackTemplate(result)), null);
+    }
+
+    private static void barrelFluidMixing(RecipeOutput writer, Fluid base, Fluid additive, Item result, boolean consumesAdditive) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("barrel_fluid_mixing/" + path(result))), new BarrelFluidMixingRecipe(SizedFluidIngredient.of(base, 1000), FluidIngredient.of(additive), new ItemStackTemplate(result), consumesAdditive), null);
+    }
+
+    private static void fluidTransformationRecipes(RecipeOutput writer) {
+        writer.accept(ResourceKey.create(Registries.RECIPE, modLoc("barrel_fluid_transformation/witch_water")), new FluidTransformationRecipe(FluidIngredient.of(Fluids.WATER), EFluids.WITCH_WATER.get(), 0x2B1057, BlockPredicate.singleBlock(Blocks.MYCELIUM), WeightedList.<BlockState>builder().add(50, Blocks.RED_MUSHROOM.defaultBlockState()).add(50, Blocks.BROWN_MUSHROOM.defaultBlockState()).build(), 1700), null);
+    }
+
+    static Identifier modLoc(String path) {
+        return ExDeorum.loc(path);
+    }
+
+    static ICondition tagNotEmpty(TagKey<Item> tag) {
+        return new NotCondition(new TagEmptyCondition<>(tag));
+    }
+
+    static ICondition modInstalled(String modid) {
+        return new ModLoadedCondition(modid);
+    }
+
+    static ICondition modNotInstalled(String modid) {
+        return new NotCondition(modInstalled(modid));
+    }
+
+    static final ICondition AE2 = modInstalled(ModIds.APPLIED_ENERGISTICS_2);
+    static final ICondition ENDERIO = modInstalled(ModIds.ENDERIO);
+    static final ICondition EXTREME_REACTORS = modInstalled(ModIds.EXTREME_REACTORS);
+
+    static NumberProvider compressedMultiplier(NumberProvider resultAmount) {
+        if (resultAmount instanceof BinomialDistributionGenerator binomial) {
+            return binomial((int) ((ConstantValue) binomial.n()).value() * 7, ((ConstantValue) binomial.p()).value());
+        } else {
+            throw new IllegalArgumentException("Unable to multiply type " + resultAmount.getClass());
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "model": {
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "minecraft:block/red_sand"
+      },
+      {
+        "type": "minecraft:model",
+        "model": "exdeorum:block/compressed_overlay"
+      }
+    ]
+  }
+}

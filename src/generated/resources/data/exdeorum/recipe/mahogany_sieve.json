@@ -1,0 +1,19 @@
+{
+  "fabric:load_conditions": [
+    { "condition": "fabric:all_mods_loaded", "values": ["biomesoplenty"] }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "I": "#c:rods/wooden",
+    "O": "biomesoplenty:mahogany_planks",
+    "_": "biomesoplenty:mahogany_slab"
+  },
+  "pattern": [
+    "O O",
+    "O_O",
+    "I I"
+  ],
+  "result": {
+    "id": "exdeorum:mahogany_sieve"
+  }
+}

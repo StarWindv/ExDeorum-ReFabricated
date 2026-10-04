@@ -1,0 +1,12 @@
+{
+  "type": "exdeorum:hammer",
+  "conditions": [
+    {
+      "condition": "minecraft:match_tool",
+      "predicate": {
+        "items": "#exdeorum:hammers"
+      }
+    }
+  ],
+  "priority": 1
+}

@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "package": "top.starwindv.exdeorum.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "minVersion": "0.8",
+  "mixins": [
+    "BlockLightEngineMixin",
+    "ItemEntityMixin",
+    "LightEngineAccessor",
+    "LiquidBlockMixin",
+    "LootTableMixin",
+    "RecipeManagerMixin"
+  ],
+  "client": [
+    "client.SpriteContentsAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

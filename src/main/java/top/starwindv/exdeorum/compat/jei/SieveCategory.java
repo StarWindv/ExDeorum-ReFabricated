@@ -1,0 +1,125 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.compat.jei;
+
+import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
+import mezz.jei.api.gui.drawable.IDrawable;
+import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
+import mezz.jei.api.helpers.IGuiHelper;
+import mezz.jei.api.recipe.IFocusGroup;
+import mezz.jei.api.recipe.RecipeIngredientRole;
+import mezz.jei.api.recipe.category.IRecipeCategory;
+import mezz.jei.api.recipe.types.IRecipeType;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
+import org.apache.commons.lang3.mutable.MutableInt;
+import top.starwindv.exdeorum.compat.XeiSieveRecipe;
+import top.starwindv.exdeorum.compat.XeiUtil;
+import top.starwindv.exdeorum.util.TranslationKeys;
+import top.starwindv.exdeorum.material.DefaultMaterials;
+
+class SieveCategory implements IRecipeCategory<XeiSieveRecipe> {
+    private final IDrawable slot;
+    private final IDrawable row;
+    private final IDrawable icon;
+    private final Component title;
+    private final MutableInt rows;
+
+    SieveCategory(IGuiHelper helper, ItemLike icon, Component title, MutableInt rows) {
+        this.slot = helper.getSlotDrawable();
+        this.row = helper.createDrawable(ExDeorumJeiPlugin.EX_DEORUM_JEI_TEXTURE, 0, 0, 162, 18);
+        this.icon = helper.createDrawableItemStack(new ItemStack(icon));
+        this.title = title;
+        this.rows = rows;
+    }
+
+    SieveCategory(IGuiHelper helper) {
+        this(helper, DefaultMaterials.OAK_SIEVE, Component.translatable(TranslationKeys.SIEVE_CATEGORY_TITLE), XeiSieveRecipe.SIEVE_ROWS);
+    }
+
+    @Override
+    public IRecipeType<XeiSieveRecipe> getRecipeType() {
+        return ExDeorumJeiPlugin.SIEVE;
+    }
+
+    @Override
+    public Component getTitle() {
+        return this.title;
+    }
+
+    @Override
+    public int getWidth() {
+        return XeiUtil.SIEVE_WIDTH;
+    }
+
+    @Override
+    public int getHeight() {
+        return XeiUtil.SIEVE_ROW_START + XeiUtil.SIEVE_ROW_HEIGHT * rows.intValue();
+    }
+
+    @Override
+    public IDrawable getIcon() {
+        return this.icon;
+    }
+
+    @Override
+    public void setRecipe(IRecipeLayoutBuilder builder, XeiSieveRecipe recipe, IFocusGroup focuses) {
+        builder.addSlot(RecipeIngredientRole.INPUT, 59, 1).add(recipe.ingredient());
+        builder.addSlot(RecipeIngredientRole.CRAFTING_STATION, 87, 1).add(recipe.mesh());
+
+        for (int i = 0; i < recipe.results().size(); i++) {
+            var result = recipe.results().get(i);
+            var slot = builder.addSlot(RecipeIngredientRole.OUTPUT, 1 + (i % 9) * 18, 1 + XeiUtil.SIEVE_ROW_START + 18 * (i / 9)).add(result.item);
+
+            addTooltips(slot, result.byHandOnly, result.provider);
+        }
+    }
+
+    public static void addTooltips(IRecipeSlotBuilder slot, boolean byHandOnly, NumberProvider provider) {
+        if (byHandOnly) {
+            slot.setCustomRenderer(VanillaTypes.ITEM_STACK, ClientJeiUtil.AsteriskItemRenderer.INSTANCE);
+        }
+        slot.addRichTooltipCallback((_, tooltip) -> {
+            XeiUtil.addSieveDropTooltip(byHandOnly, provider, tooltip::add);
+        });
+    }
+
+    @Override
+    public void draw(XeiSieveRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor graphics, double mouseX, double mouseY) {
+        this.slot.draw(graphics, 58, 0);
+        this.slot.draw(graphics, 86, 0);
+
+        int rows = this.rows.intValue();
+
+        for (int i = 0; i < rows; i++) {
+            this.row.draw(graphics, 0, 28 + i * 18);
+        }
+    }
+}

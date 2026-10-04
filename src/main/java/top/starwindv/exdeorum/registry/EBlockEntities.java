@@ -1,0 +1,44 @@
+/*
+ * Ex Deorum
+ * Copyright (c) 2024 thedarkcolour
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Modifications Copyleft (c) 2026 StarWindv
+ * Ported to Fabric
+ * SPDX-License-Identifier: GPL-3-Clause
+ */
+
+package top.starwindv.exdeorum.registry;
+
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import top.starwindv.exdeorum.ExDeorum;
+import top.starwindv.exdeorum.blockentity.*;
+import top.starwindv.exdeorum.material.DefaultMaterials;
+
+public class EBlockEntities {
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ExDeorum.ID);
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<InfestedLeavesBlockEntity>> INFESTED_LEAVES = BLOCK_ENTITIES.register("infested_leaves", () -> new BlockEntityType<>(InfestedLeavesBlockEntity::new, java.util.Set.of(EBlocks.INFESTED_LEAVES.get())));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LavaCrucibleBlockEntity>> LAVA_CRUCIBLE = BLOCK_ENTITIES.register("lava_crucible", () -> DefaultMaterials.LAVA_CRUCIBLES.createBlockEntityType(LavaCrucibleBlockEntity::new));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WaterCrucibleBlockEntity>> WATER_CRUCIBLE = BLOCK_ENTITIES.register("water_crucible", () -> DefaultMaterials.WATER_CRUCIBLES.createBlockEntityType(WaterCrucibleBlockEntity::new));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BarrelBlockEntity>> BARREL = BLOCK_ENTITIES.register("barrel", () -> DefaultMaterials.BARRELS.createBlockEntityType(BarrelBlockEntity::new));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SieveBlockEntity>> SIEVE = BLOCK_ENTITIES.register("sieve", () -> DefaultMaterials.SIEVES.createBlockEntityType(SieveBlockEntity::new));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CompressedSieveBlockEntity>> COMPRESSED_SIEVE = BLOCK_ENTITIES.register("compressed_sieve", () -> DefaultMaterials.COMPRESSED_SIEVES.createBlockEntityType(CompressedSieveBlockEntity::new));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MechanicalSieveBlockEntity>> MECHANICAL_SIEVE = BLOCK_ENTITIES.register("mechanical_sieve", () -> new BlockEntityType<>(MechanicalSieveBlockEntity::new, java.util.Set.of(EBlocks.MECHANICAL_SIEVE.get())));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MechanicalHammerBlockEntity>> MECHANICAL_HAMMER = BLOCK_ENTITIES.register("mechanical_hammer", () -> new BlockEntityType<>(MechanicalHammerBlockEntity::new, java.util.Set.of(EBlocks.MECHANICAL_HAMMER.get())));
+}
