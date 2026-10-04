@@ -51,4 +51,4 @@
 
 这里的一切都和它的 NeoForge 版本一样保持 GPL-3-Clause 协议开源
 
-具体的协议拆分情况请见[此处](./LICENSE.md)
+具体的协议拆分情况请见[此处](https://github.com/StarWindv/ExDeorum-ReFabricated/blob/26.2/License.md)
