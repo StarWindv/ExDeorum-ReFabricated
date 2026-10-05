@@ -63,7 +63,7 @@ public class PorcelainBucketStorage implements Storage<FluidVariant> {
     public long insert(FluidVariant resource, long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notBlankNotNegative(resource, maxAmount);
 
-        if (currentFluid() != Fluids.EMPTY || maxAmount < 1000 || this.context.getAmount() != 1) {
+        if (currentFluid() != Fluids.EMPTY || maxAmount < 1000) {
             return 0;
         }
 
@@ -84,7 +84,7 @@ public class PorcelainBucketStorage implements Storage<FluidVariant> {
     public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notBlankNotNegative(resource, maxAmount);
 
-        if (currentFluid() == Fluids.EMPTY || maxAmount < 1000 || this.context.getAmount() != 1) {
+        if (currentFluid() == Fluids.EMPTY || maxAmount < 1000) {
             return 0;
         }
 
