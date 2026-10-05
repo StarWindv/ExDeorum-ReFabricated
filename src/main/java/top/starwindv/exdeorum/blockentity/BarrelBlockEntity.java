@@ -37,6 +37,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemUtils;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
@@ -248,9 +249,14 @@ public class BarrelBlockEntity extends ETankBlockEntity {
                     var fluid = new FluidStack(Fluids.WATER, 250);
 
                     if (playerItem.getItem() == Items.POTION && playerItem.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER)) {
-                        if (this.tank.fill(fluid, FluidAction.SIMULATE) > 0) {
+                        // All or nothing, matching the drain below. fill() would happily top the
+                        // barrel up partially, which would void the rest of the bottle.
+                        if (this.tank.fill(fluid, FluidAction.SIMULATE) == fluid.getAmount()) {
                             if (!player.getAbilities().instabuild) {
-                                player.setItemInHand(hand, new ItemStack(Items.GLASS_BOTTLE));
+                                // Not a plain setItemInHand: a stack has to keep its remaining bottles,
+                                // and the empty one goes to the inventory or the floor, the way
+                                // vanilla buckets hand it over. Same helper extractWaterBottle relies on.
+                                player.setItemInHand(hand, ItemUtils.createFilledResult(playerItem, player, new ItemStack(Items.GLASS_BOTTLE)));
                             }
                             this.tank.fill(fluid, FluidAction.EXECUTE);
                             level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BOTTLE_FILL, SoundSource.NEUTRAL, 1.0F, 1.0F);

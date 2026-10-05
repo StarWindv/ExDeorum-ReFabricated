@@ -80,6 +80,6 @@ public class WateringCanStorage implements Storage<FluidVariant> {
     public Iterator<StorageView<FluidVariant>> iterator() {
         var contents = contents();
         var variant = contents.isEmpty() ? FluidVariant.blank() : FluidVariant.of(contents.fluid());
-        return List.<StorageView<FluidVariant>>of(new TankAccess(variant, contents.isEmpty() ? 0 : contents.amount(), capacity())).iterator();
+        return List.<StorageView<FluidVariant>>of(new TankAccess(this, variant, contents.isEmpty() ? 0 : contents.amount(), capacity())).iterator();
     }
 }

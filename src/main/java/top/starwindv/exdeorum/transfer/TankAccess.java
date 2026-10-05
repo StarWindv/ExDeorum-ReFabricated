@@ -6,16 +6,21 @@
 package top.starwindv.exdeorum.transfer;
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 
 // Simple live StorageView over a single fluid variant, shared by the Ex Deorum storages.
+// Extraction has to go back through the owning storage, because the Transfer API drives
+// item to block transfers off the views rather than off the storage itself.
 public class TankAccess implements StorageView<FluidVariant> {
+    private final Storage<FluidVariant> source;
     private final FluidVariant variant;
     private final long amount;
     private final long capacity;
 
-    public TankAccess(FluidVariant variant, long amount, long capacity) {
+    public TankAccess(Storage<FluidVariant> source, FluidVariant variant, long amount, long capacity) {
+        this.source = source;
         this.variant = variant;
         this.amount = amount;
         this.capacity = capacity;
@@ -43,6 +48,6 @@ public class TankAccess implements StorageView<FluidVariant> {
 
     @Override
     public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
-        return 0;
+        return this.source.extract(resource, maxAmount, transaction);
     }
 }

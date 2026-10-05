@@ -8,10 +8,12 @@ package top.starwindv.exdeorum.api;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.jetbrains.annotations.Nullable;
 
 import com.mojang.logging.LogUtils;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -22,11 +24,13 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.loot.providers.number.BinomialDistributionGenerator;
 import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
 import org.slf4j.Logger;
 import top.starwindv.exdeorum.recipe.sieve.CompressedSieveRecipe;
 import top.starwindv.exdeorum.recipe.sieve.SieveRecipe;
+import top.starwindv.exdeorum.transfer.ContainerFluidStorage;
 
 /**
  * Entry point for other mods that want to add their own drops to Ex Deorum's sieves and
@@ -165,6 +169,63 @@ public final class ExDeorumApi {
         var ids = new ArrayList<Identifier>(addSieveDrops(list));
         ids.addAll(addCompressedSieveDrops(list));
         return ids;
+    }
+
+    // ------------------------------------------------------------------ fluid containers
+
+    /** The volume of a vanilla bucket, in mB, which is what {@link #registerBuckets} assumes. */
+    public static final long BUCKET_VOLUME = 1000L;
+
+    /**
+     * Makes a family of container items interoperate with Ex Deorum's barrels and crucibles, so
+     * a player can pour fluid out of them into a barrel or fill them from one.
+     *
+     * <p>See {@link FluidContainer} for the transfer rules, which are what keep a container
+     * from being left holding an amount its own item cannot represent. Register the empty item
+     * as well as every filled one: the storage is looked up per item, so a filled item left out
+     * stays a plain ingredient.
+     *
+     * <p>Like {@link FluidStorage#ITEM}, this may only be called during your own mod init.
+     *
+     * @return the items that were registered
+     */
+    public static Collection<Item> registerFluidContainer(FluidContainer container, Item... items) {
+        for (var item : items) {
+            Objects.requireNonNull(item, "item");
+            FluidStorage.ITEM.registerForItems((variant, context) -> new ContainerFluidStorage(context, container), item);
+        }
+
+        LOGGER.info("Ex Deorum registered {} fluid container(s) from the API: {}", items.length, List.of(items));
+
+        return List.of(items);
+    }
+
+    /**
+     * Registers a bucket shaped family: one empty item plus one item per fluid it can hold, each
+     * holding a vanilla bucket's worth of fluid.
+     *
+     * <p>Every item in the family is registered for you, so there is no need to list them out
+     * separately. Modded fluids are fine; a fluid with no entry in {@code filledItems} simply
+     * cannot be poured into these buckets.
+     *
+     * <pre>{@code
+     * ExDeorumApi.registerBuckets(MyItems.EMPTY_JUG, Map.of(Fluids.WATER, MyItems.WATER_JUG));
+     * }</pre>
+     *
+     * @return the items that were registered
+     */
+    public static Collection<Item> registerBuckets(Item emptyItem, Map<Fluid, Item> filledItems) {
+        return registerBuckets(emptyItem, filledItems, BUCKET_VOLUME);
+    }
+
+    /** As {@link #registerBuckets(Item, Map)}, for containers that hold something other than a bucket's worth. */
+    public static Collection<Item> registerBuckets(Item emptyItem, Map<Fluid, Item> filledItems, long volume) {
+        var container = new BucketContainer(emptyItem, filledItems, volume);
+        var items = new ArrayList<Item>(filledItems.size() + 1);
+        items.add(emptyItem);
+        items.addAll(filledItems.values());
+
+        return registerFluidContainer(container, items.toArray(Item[]::new));
     }
 
     // ------------------------------------------------------------------ shortcuts
