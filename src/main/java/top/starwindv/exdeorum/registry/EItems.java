@@ -25,11 +25,13 @@
 package top.starwindv.exdeorum.registry;
 
 import com.google.common.collect.Iterables;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.Consumables;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
@@ -133,8 +135,11 @@ public class EItems {
     public static final DeferredItem<Item> UNFIRED_PORCELAIN_BUCKET = registerSimpleItem("unfired_porcelain_bucket");
     public static final DeferredItem<Item> PORCELAIN_BUCKET = register("porcelain_bucket", properties -> new PorcelainBucket(() -> Fluids.EMPTY, properties.stacksTo(16)));
     public static final DeferredItem<Item> PORCELAIN_WATER_BUCKET = register("porcelain_water_bucket", properties -> new PorcelainBucket(() -> Fluids.WATER, properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
-    public static final DeferredItem<Item> PORCELAIN_LAVA_BUCKET = register("porcelain_lava_bucket", properties -> new PorcelainBucket(() -> Fluids.LAVA, properties.stacksTo(1)));
-    public static final DeferredItem<Item> PORCELAIN_MILK_BUCKET = register("porcelain_milk_bucket", properties -> new PorcelainMilkBucket(properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
+    public static final DeferredItem<Item> PORCELAIN_LAVA_BUCKET = register("porcelain_lava_bucket", properties -> new PorcelainBucket(() -> Fluids.LAVA, properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
+    // A plain Item, like the vanilla milk bucket: the CONSUMABLE component is what actually
+    // starts the drink, USING_CONVERTS_TO is what hands the empty bucket back. Without them
+    // Item.use returns PASS and the milk bucket could not be drunk at all.
+    public static final DeferredItem<Item> PORCELAIN_MILK_BUCKET = register("porcelain_milk_bucket", properties -> new Item(properties.craftRemainder(PORCELAIN_BUCKET.get()).component(DataComponents.CONSUMABLE, Consumables.MILK_BUCKET).usingConvertsTo(PORCELAIN_BUCKET.get()).stacksTo(1)));
     public static final DeferredItem<Item> PORCELAIN_WITCH_WATER_BUCKET = register("porcelain_witch_water_bucket", properties -> new PorcelainBucket(EFluids.WITCH_WATER, properties.craftRemainder(PORCELAIN_BUCKET.get()).stacksTo(1)));
 
     // Fluids

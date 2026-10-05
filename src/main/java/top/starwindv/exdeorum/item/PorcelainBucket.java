@@ -154,12 +154,10 @@ public class PorcelainBucket extends Item {
     }
 
     private ItemStack getEmptySuccessItem(ItemStack stack, Player player) {
+        // Every fluid leaves an empty bucket behind, lava included. Vanilla's getEmptySuccessItem
+        // has no lava case either, so consuming the bucket here only lost the player's bucket.
         if (!player.getAbilities().instabuild) {
-            if (this.fluid.get() == Fluids.LAVA) {
-                return ItemStack.EMPTY;
-            } else {
-                return new ItemStack(EItems.PORCELAIN_BUCKET.get());
-            }
+            return new ItemStack(EItems.PORCELAIN_BUCKET.get());
         } else {
             return stack;
         }
