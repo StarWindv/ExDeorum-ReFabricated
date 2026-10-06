@@ -85,7 +85,7 @@ public class MechanicalHammerScreen extends AbstractContainerScreen<MechanicalHa
         int ry = mouseY - top;
 
         if (9 <= rx && rx < 23 && 14 <= ry && ry < 70) {
-            var energyTooltip = Component.translatable(TranslationKeys.ENERGY).append(Component.translatable(TranslationKeys.FRACTION_DISPLAY, this.menu.prevEnergy, EConfig.SERVER.mechanicalSieveEnergyStorage.get())).append(" FE");
+            var energyTooltip = Component.translatable(TranslationKeys.ENERGY).append(Component.translatable(TranslationKeys.FRACTION_DISPLAY, this.menu.prevEnergy, EConfig.SERVER.mechanicalSieveEnergyStorage.get())).append(Component.translatable(TranslationKeys.ENERGY_UNIT));
             graphics.setTooltipForNextFrame(energyTooltip, mouseX, mouseY);
         }
 

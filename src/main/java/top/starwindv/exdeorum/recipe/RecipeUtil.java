@@ -95,6 +95,11 @@ public final class RecipeUtil {
     private static CrucibleHeatRecipeCache crucibleHeatRecipeCache;
     private static List<BarrelMixingRecipe> barrelMixingRecipes;
     private static RecipeMap currentRecipeMap;
+    // The merged sieve recipes exactly as the caches see them — API ones included, drop rate
+    // overrides applied. The JEI plugin reads these so its display matches actual behaviour;
+    // the raw recipe map alone would hide every API-registered compat drop.
+    private static List<RecipeHolder<SieveRecipe>> allSieveRecipes;
+    private static List<RecipeHolder<CompressedSieveRecipe>> allCompressedSieveRecipes;
 
     public static void reload(RecipeMap recipes) {
         currentRecipeMap = recipes;
@@ -117,13 +122,17 @@ public final class RecipeUtil {
         waterCrucibleRecipeCache = new SingleIngredientRecipeCache<>(ProbabilityTuner.tune(recipes.byType(ERecipeTypes.WATER_CRUCIBLE.get())), ERecipeTypes.WATER_CRUCIBLE);
         hammerRecipeCache = new SingleIngredientRecipeCache<>(ProbabilityTuner.tune(recipes.byType(ERecipeTypes.HAMMER.get())), ERecipeTypes.HAMMER).trackAllRecipes();
         compressedHammerRecipeCache = new SingleIngredientRecipeCache<>(ProbabilityTuner.tune(recipes.byType(ERecipeTypes.COMPRESSED_HAMMER.get())), ERecipeTypes.COMPRESSED_HAMMER).trackAllRecipes();
-        sieveRecipeCache = new SieveRecipeCache<>(ProbabilityTuner.tune(apiSieve), ERecipeTypes.SIEVE);
-        compressedSieveRecipeCache = new SieveRecipeCache<>(ProbabilityTuner.tune(apiCompressedSieve), ERecipeTypes.COMPRESSED_SIEVE);
+        var tunedSieve = ProbabilityTuner.tune(apiSieve);
+        var tunedCompressedSieve = ProbabilityTuner.tune(apiCompressedSieve);
+        sieveRecipeCache = new SieveRecipeCache<>(tunedSieve, ERecipeTypes.SIEVE);
+        compressedSieveRecipeCache = new SieveRecipeCache<>(tunedCompressedSieve, ERecipeTypes.COMPRESSED_SIEVE);
         barrelFluidMixingRecipeCache = new BarrelFluidMixingRecipeCache(recipes);
         fluidTransformationRecipeCache = new FluidTransformationRecipeCache(recipes);
         crookRecipeCache = new CrookRecipeCache(ProbabilityTuner.tune(recipes.byType(ERecipeTypes.CROOK.get())));
         crucibleHeatRecipeCache = new CrucibleHeatRecipeCache(recipes);
         barrelMixingRecipes = barrelMixing.stream().map(RecipeHolder::value).toList();
+        allSieveRecipes = List.copyOf(tunedSieve);
+        allCompressedSieveRecipes = List.copyOf(tunedCompressedSieve);
         ProbabilityTuner.endReload();
         ProbabilityTuner.logApplied();
         logDirtSieveDrops(apiSieve);
@@ -209,6 +218,18 @@ public final class RecipeUtil {
         crucibleHeatRecipeCache = null;
         barrelMixingRecipes = null;
         currentRecipeMap = null;
+        allSieveRecipes = null;
+        allCompressedSieveRecipes = null;
+    }
+
+    /** Every loaded sieve recipe — API ones included, with drop rate overrides applied. */
+    public static List<RecipeHolder<SieveRecipe>> getAllSieveRecipes() {
+        return allSieveRecipes == null ? List.of() : allSieveRecipes;
+    }
+
+    /** Every loaded compressed sieve recipe, same shape as {@link #getAllSieveRecipes()}. */
+    public static List<RecipeHolder<CompressedSieveRecipe>> getAllCompressedSieveRecipes() {
+        return allCompressedSieveRecipes == null ? List.of() : allCompressedSieveRecipes;
     }
 
     public static List<SieveRecipe> getSieveRecipes(Item mesh, ItemStack item) {

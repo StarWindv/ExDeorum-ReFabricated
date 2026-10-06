@@ -50,7 +50,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
 import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -59,19 +59,28 @@ import top.starwindv.exdeorum.recipe.sieve.SieveRecipe;
 import top.starwindv.exdeorum.registry.EItems;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Function;
 
 // Since no JEI code is used here, this can be reused for REI
 public record XeiSieveRecipe(Ingredient ingredient, ItemStack mesh, List<Result> results) {
     public static final MutableInt SIEVE_ROWS = new MutableInt(0);
     public static final MutableInt COMPRESSED_SIEVE_ROWS = new MutableInt(0);
 
-    public static ImmutableList<XeiSieveRecipe> getAllRecipesGrouped(RecipeType<? extends SieveRecipe> recipeType, MutableInt maxRows) {
+    /**
+     * Groups the given recipes (already merged with the API ones and tuned, per
+     * {@link RecipeUtil#getAllSieveRecipes()}) into one display recipe per input and mesh.
+     */
+    public static ImmutableList<XeiSieveRecipe> getAllRecipesGrouped(
+            Collection<? extends RecipeHolder<? extends SieveRecipe>> holders, MutableInt maxRows) {
         int maxSieveRows = 1;
 
-        var recipes = CompatUtil.collectAllRecipes(recipeType, Function.identity());
+        var recipes = new ArrayList<SieveRecipe>(holders.size());
+        for (var holder : holders) {
+            recipes.add(holder.value());
+        }
+
         Multimap<Ingredient, SieveRecipe> ingredientGrouper = ArrayListMultimap.create();
 
         for (int i = 0; i < recipes.size(); i++) {

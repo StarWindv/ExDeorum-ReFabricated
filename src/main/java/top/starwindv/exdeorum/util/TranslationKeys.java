@@ -40,6 +40,8 @@ public class TranslationKeys {
     public static final String MECHANICAL_SIEVE_MESH_LABEL = "item." + ExDeorum.ID + ".mechanical_sieve.mesh_label";
     public static final String MECHANICAL_HAMMER_HAMMER_LABEL = "item." + ExDeorum.ID + ".mechanical_hammer.hammer_label";
     public static final String ENERGY = "gui." + ExDeorum.ID + ".energy_label";
+    // The Fabric energy unit, "E" — FE is NeoForge terminology and no longer applies here.
+    public static final String ENERGY_UNIT = "gui." + ExDeorum.ID + ".energy_unit";
 
     // Blocks
     public static final String INFESTED_LEAVES_FULLY_INFESTED = "block." + ExDeorum.ID + ".infested_leaves.fully_infested";

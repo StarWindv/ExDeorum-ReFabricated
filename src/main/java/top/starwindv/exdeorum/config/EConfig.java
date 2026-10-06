@@ -172,16 +172,16 @@ public class EConfig {
                     .comment("Whether the entity conversion mechanic of Witch Water is enabled. If enabled, when an entity steps into Witch Water, the following conversions may happen: Villager -> Zombie Villager, Cleric Villager -> Witch, Skeleton -> Wither Skeleton, Creeper -> Charged Creeper, Spider -> Cave Spider, Pig & Piglin -> Zombified Piglin, Squid -> Ghast, Mooshroom -> Brown Mooshroom, Axolotl -> Blue Axolotl, Rabbit -> Killer Rabbit, Pufferfish -> Guardian, Horse -> Skeleton/Zombie Horse")
                     .define("allow_witch_water_entity_conversion", true);
             this.mechanicalSieveEnergyStorage = builder
-                    .comment("The maximum amount of FE the mechanical sieve can have in its energy storage.")
+                    .comment("The maximum amount of energy (E) the mechanical sieve can have in its energy storage.")
                     .defineInRange("mechanical_sieve_energy_storage", 40_000, 0, Integer.MAX_VALUE);
             this.mechanicalSieveEnergyConsumption = builder
-                    .comment("The amount of FE/t a tick consumed by the mechanical sieve when sifting a block.")
+                    .comment("The amount of energy per tick consumed by the mechanical sieve when sifting a block.")
                     .defineInRange("mechanical_sieve_energy_consumption", 40, 0, Integer.MAX_VALUE);
             this.mechanicalHammerEnergyStorage = builder
-                    .comment("The maximum amount of FE the mechanical hammer can have in its energy storage.")
+                    .comment("The maximum amount of energy (E) the mechanical hammer can have in its energy storage.")
                     .defineInRange("mechanical_hammer_energy_storage", 40_000, 0, Integer.MAX_VALUE);
             this.mechanicalHammerEnergyConsumption = builder
-                    .comment("The amount of FE/t a tick consumed by the mechanical hammer when crushing a block.")
+                    .comment("The amount of energy per tick consumed by the mechanical hammer when crushing a block.")
                     .defineInRange("mechanical_hammer_energy_consumption", 20, 0, Integer.MAX_VALUE);
             this.sieveIntervalTicks = builder
                     .comment("The minimum number of ticks a player must wait between two sifting operations. Only affects sifting by hand. 0 means no limit.")

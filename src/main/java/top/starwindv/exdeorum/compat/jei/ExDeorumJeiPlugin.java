@@ -222,8 +222,10 @@ public class ExDeorumJeiPlugin implements IModPlugin {
         //noinspection rawtypes,unchecked
         addRecipes(registration, COMPRESSED_HAMMER, ((DeferredHolder) ERecipeTypes.COMPRESSED_HAMMER));
         registration.addRecipes(CROOK, CompatUtil.collectAllRecipes(ERecipeTypes.CROOK.get(), CrookJeiRecipe::create));
-        registration.addRecipes(SIEVE, XeiSieveRecipe.getAllRecipesGrouped(ERecipeTypes.SIEVE.get(), XeiSieveRecipe.SIEVE_ROWS));
-        registration.addRecipes(COMPRESSED_SIEVE, XeiSieveRecipe.getAllRecipesGrouped(ERecipeTypes.COMPRESSED_SIEVE.get(), XeiSieveRecipe.COMPRESSED_SIEVE_ROWS));
+        // The merged lists, not the raw recipe map: the raw map hides every API-registered
+        // compat drop, and applying the drop rate overrides keeps JEI matching the caches.
+        registration.addRecipes(SIEVE, XeiSieveRecipe.getAllRecipesGrouped(RecipeUtil.getAllSieveRecipes(), XeiSieveRecipe.SIEVE_ROWS));
+        registration.addRecipes(COMPRESSED_SIEVE, XeiSieveRecipe.getAllRecipesGrouped(RecipeUtil.getAllCompressedSieveRecipes(), XeiSieveRecipe.COMPRESSED_SIEVE_ROWS));
 
         addCrucibleHeatSources(registration);
     }

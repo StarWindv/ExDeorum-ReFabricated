@@ -96,7 +96,7 @@ public abstract class MachineBlock extends EBlock {
                 // display the energy stored in the machine
                 if (nbt.contains("energy")) {
                     var energy = nbt.getInt("energy");
-                    tooltip.add(Component.translatable(TranslationKeys.ENERGY).withStyle(ChatFormatting.GRAY).append(Component.translatable(TranslationKeys.FRACTION_DISPLAY, energy, EConfig.SERVER.mechanicalSieveEnergyStorage.get())).append(" FE"));
+                    tooltip.add(Component.translatable(TranslationKeys.ENERGY).withStyle(ChatFormatting.GRAY).append(Component.translatable(TranslationKeys.FRACTION_DISPLAY, energy, EConfig.SERVER.mechanicalSieveEnergyStorage.get())).append(Component.translatable(TranslationKeys.ENERGY_UNIT)));
                 }
             }
         }
