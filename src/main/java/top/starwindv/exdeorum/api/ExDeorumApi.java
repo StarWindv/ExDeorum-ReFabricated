@@ -99,8 +99,21 @@ public final class ExDeorumApi {
         /** {@code rolls} rolls, each with the given chance. */
         public static SieveDrop chance(Identifier id, Ingredient inputs, Ingredient meshes, ItemStack result,
                                        int rolls, float chance) {
-            return new SieveDrop(id, inputs, meshes, new ItemStackTemplate(result.getItem(), result.getCount()),
-                    rolls, chance, false);
+            return chance(id, inputs, meshes, new ItemStackTemplate(result.getItem(), result.getCount()),
+                    rolls, chance);
+        }
+
+        /**
+         * {@code rolls} rolls, each with the given chance, taking the result as a template.
+         *
+         * <p>Unlike an ItemStack, a template can be built before the item components are bound,
+         * so this overload is safe from recipe reload hooks, which 26.2 runs before
+         * {@code updateComponentsAndStaticRegistryTags}. Building an ItemStack any earlier than
+         * that throws {@code NullPointerException: Components not bound yet}.
+         */
+        public static SieveDrop chance(Identifier id, Ingredient inputs, Ingredient meshes, ItemStackTemplate result,
+                                       int rolls, float chance) {
+            return new SieveDrop(id, inputs, meshes, result, rolls, chance, false);
         }
 
         /** A flat one in {@code divisor}. */

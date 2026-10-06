@@ -24,10 +24,10 @@ import top.starwindv.exdeorum.api.FluidContainer;
  * Backs a {@link FluidContainer} family as a Fabric Transfer API item fluid storage, which is
  * what lets the barrels and crucibles pour into and out of those items.
  *
- * <p>Only whole volumes move. The Transfer API may ask for less than a volume when the other
- * side of the transfer is short on fluid, and refusing in that case is deliberate: it stops a
- * container from being left holding an amount its own item variant cannot represent. The same
- * goes for a barrel that cannot free up a whole volume.
+ * <p>Only whole volumes move in: filling a container from a tank demands the tank free up a
+ * whole volume, since the item cannot represent a partial fill. Pouring out is the reverse —
+ * any destination with room takes what it can, the container empties through the normal
+ * exchange, and what did not fit is voided.
  *
  * <p>Stacks work the way vanilla buckets do. A unit is taken from the held stack and the filled
  * item goes to the player's inventory, or is dropped at their feet when the inventory is full,
@@ -76,12 +76,20 @@ public class ContainerFluidStorage implements Storage<FluidVariant> {
 
         var fluid = currentFluid();
 
-        if (fluid == null || fluid == Fluids.EMPTY || maxAmount < this.container.volume() || fluid != resource.getFluid()) {
+        if (fluid == null || fluid == Fluids.EMPTY || fluid != resource.getFluid() || maxAmount <= 0) {
             return 0;
         }
 
+        // Pouring out no longer demands room for the whole volume: whatever the destination
+        // accepts moves, the container still swaps to its empty item through the normal
+        // exchange, and what did not fit is voided. These items cannot represent a partial
+        // fill, so keeping the remainder is not an option, and refusing the pour entirely
+        // until the destination had a whole volume free played badly in practice. A full
+        // destination accepts nothing, so a full barrel still refuses by itself.
+        var moved = Math.min(maxAmount, this.container.volume());
+
         if (this.context.exchange(ItemVariant.of(this.container.emptyItem()), 1, transaction) == 1) {
-            return this.container.volume();
+            return moved;
         }
 
         return 0;

@@ -10,9 +10,9 @@ import top.starwindv.exdeorum.compat.ModIds;
 /**
  * Farmer's Delight seeds.
  *
- * <p>Only cabbage and tomato have their own seed items. Rice is planted with the vanilla
- * {@code minecraft:rice_seeds}, which Ex Deorum's own data pack does not sift, so it is covered
- * here; {@code farmersdelight:rice} is the grain, not a plantable seed.
+ * <p>Only cabbage and tomato have their own seed items. Rice is planted with the grain item
+ * {@code farmersdelight:rice} itself, the same pattern vanilla uses for carrots and potatoes,
+ * so the grain is what gets sifted.
  */
 record FarmersDelightSeeds() implements ModSeeds {
     @Override
@@ -24,7 +24,7 @@ record FarmersDelightSeeds() implements ModSeeds {
     public void register(Collector collector) {
         collector.seedFromDirt(modId(), "cabbage_seeds");
         collector.seedFromDirt(modId(), "tomato_seeds");
-        // Published into the vanilla namespace, resolved through the minecraft fallback
-        collector.seedFromDirt(modId(), "rice_seeds");
+        // Planted directly as the grain, like vanilla carrots
+        collector.seedFromDirt(modId(), "rice");
     }
 }

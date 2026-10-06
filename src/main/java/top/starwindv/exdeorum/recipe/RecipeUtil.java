@@ -25,9 +25,11 @@
 package top.starwindv.exdeorum.recipe;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,6 +43,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeMap;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.Fluid;
@@ -50,6 +53,7 @@ import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.providers.number.*;
+import org.slf4j.Logger;
 import top.starwindv.exdeorum.fluid.FluidIngredient;
 import top.starwindv.exdeorum.fluid.FluidStack;
 import org.jetbrains.annotations.Nullable;
@@ -71,6 +75,7 @@ import top.starwindv.exdeorum.registry.ERecipeTypes;
 import java.util.*;
 
 public final class RecipeUtil {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final int CONSTANT_TYPE = 1;
     private static final int UNIFORM_TYPE = 2;
     private static final int BINOMIAL_TYPE = 3;
@@ -99,9 +104,11 @@ public final class RecipeUtil {
         ProbabilityTuner.beginReload();
 
         // Recipes other mods registered through Ex Deorum's API, merged on top of the
-        // data packs so pack authors can still override them.
+        // data packs so pack authors can still override them. The compressed drops go to
+        // the compressed sieve only: merging them here as well made the config screen list
+        // every compressed entry twice.
         var apiSieve = ExDeorumApi.withSieveDrops(recipes.byType(ERecipeTypes.SIEVE.get()),
-                ExDeorumApi.sieveDrops(), ExDeorumApi.compressedSieveDrops());
+                ExDeorumApi.sieveDrops(), null);
         var apiCompressedSieve = ExDeorumApi.withSieveDrops(recipes.byType(ERecipeTypes.COMPRESSED_SIEVE.get()),
                 null, ExDeorumApi.compressedSieveDrops());
         var barrelMixing = recipes.byType(ERecipeTypes.BARREL_MIXING.get());
@@ -119,6 +126,73 @@ public final class RecipeUtil {
         barrelMixingRecipes = barrelMixing.stream().map(RecipeHolder::value).toList();
         ProbabilityTuner.endReload();
         ProbabilityTuner.logApplied();
+        logDirtSieveDrops(apiSieve);
+    }
+
+    // Diagnostic for the seed-compat pipeline: after every reload, print everything the
+    // regular sieves can drop from a plain dirt block, grouped by the namespace that owns
+    // each result (Vanilla vs. the providing mod). A missing mod group means that mod's
+    // seed recipes never got registered, which is exactly what the seed compat should fix.
+    private static void logDirtSieveDrops(Collection<RecipeHolder<SieveRecipe>> recipes) {
+        var dirt = Blocks.DIRT.asItem();
+        var byNamespace = new LinkedHashMap<String, LinkedHashMap<Identifier, List<SieveRecipe>>>();
+        var matching = 0;
+
+        for (var holder : recipes) {
+            var recipe = holder.value();
+
+            if (recipe.ingredient.items().noneMatch(h -> h.value() == dirt)) {
+                continue;
+            }
+
+            matching++;
+
+            // Resolve the item through the template's holder rather than create(), which would
+            // build an ItemStack and read the not-yet-bound item components at this point.
+            var resultId = BuiltInRegistries.ITEM.getKey(recipe.result().item().value());
+            byNamespace.computeIfAbsent(resultId.getNamespace(), k -> new LinkedHashMap<>())
+                    .computeIfAbsent(resultId, k -> new ArrayList<>())
+                    .add(recipe);
+        }
+
+        if (byNamespace.isEmpty()) {
+            LOGGER.warn("[Dirt sieve dump] no sieve recipe accepts minecraft:dirt, sieve drops are broken");
+            return;
+        }
+
+        LOGGER.info("[Dirt sieve dump] {} sieve recipe(s) accept minecraft:dirt, from {} source(s):",
+                matching, byNamespace.size());
+
+        for (var namespace : byNamespace.entrySet()) {
+            LOGGER.info("[Dirt sieve dump]   {} ({}): {} result(s)",
+                    sourceLabel(namespace.getKey()), namespace.getKey(), namespace.getValue().size());
+
+            for (var result : namespace.getValue().entrySet()) {
+                var chances = result.getValue().stream().map(SieveRecipe::tunableProbability).toList();
+                var meshes = result.getValue().stream()
+                        .flatMap(recipe -> recipe.mesh().items())
+                        .map(h -> BuiltInRegistries.ITEM.getKey(h.value()).getPath())
+                        .distinct()
+                        .toList();
+                LOGGER.info("[Dirt sieve dump]     {} p={} meshes={}", result.getKey(), chanceRange(chances), meshes);
+            }
+        }
+    }
+
+    private static String chanceRange(List<Float> chances) {
+        var min = chances.stream().min(Float::compare).orElse(0.0f);
+        var max = chances.stream().max(Float::compare).orElse(0.0f);
+        return min == max ? String.valueOf(min) : min + ".." + max;
+    }
+
+    private static String sourceLabel(String namespace) {
+        if (namespace.equals("minecraft")) {
+            return "Vanilla";
+        }
+
+        return FabricLoader.getInstance().getModContainer(namespace)
+                .map(container -> container.getMetadata().getName())
+                .orElse(namespace);
     }
 
     public static void unload() {

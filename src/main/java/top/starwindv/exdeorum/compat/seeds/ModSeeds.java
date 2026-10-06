@@ -8,10 +8,9 @@ package top.starwindv.exdeorum.compat.seeds;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Blocks;
-import net.fabricmc.loader.api.FabricLoader;
 import org.jetbrains.annotations.Nullable;
 
 import top.starwindv.exdeorum.ExDeorum;
@@ -43,14 +42,22 @@ public interface ModSeeds {
      * Builds sieve drops for the collected seeds.
      *
      * <p>The mesh tiers mirror the vanilla seed drops in {@code SieveRecipes}: the string mesh is
-     * the worst and the golden mesh the best, so seed density tracks the player's progression
+     * the worst and the netherite mesh the best, so seed density tracks the player's progression
      * through the mesh tree rather than being flat.
      */
     final class Collector {
-        private static final float STRING_CHANCE = 0.1f;
-        private static final float FLINT_CHANCE = 0.12f;
-        private static final float IRON_CHANCE = 0.15f;
-        private static final float GOLDEN_CHANCE = 0.165f;
+        // Deliberately well below the vanilla seed curve (wheat runs 0.125 -> 0.3): Ex Deorum
+        // worlds are skyblocks where a handful of mod seeds go a long way, so a full stack of
+        // dirt should yield a few, not dozens.
+        private static final float STRING_CHANCE = 0.05f;
+        private static final float FLINT_CHANCE = 0.06f;
+        private static final float IRON_CHANCE = 0.07f;
+        private static final float GOLDEN_CHANCE = 0.08f;
+        private static final float DIAMOND_CHANCE = 0.09f;
+        private static final float NETHERITE_CHANCE = 0.1f;
+        // The compressed sieve makes the same per-roll draws as the regular one, but a
+        // compressed dirt block stands for several, so its recipes all roll 7 times.
+        private static final int COMPRESSED_ROLLS = 7;
 
         private static final Ingredient DIRT = Ingredient.of(Blocks.DIRT);
         private static final Ingredient COMPRESSED_DIRT = Ingredient.of(ECompressedBlocks.COMPRESSED_DIRT.getBlock());
@@ -70,7 +77,7 @@ public interface ModSeeds {
             var own = item(owner, path);
 
             if (own != null) {
-                fromDirt(owner, path, new ItemStack(own));
+                fromDirt(owner, path, own);
                 return;
             }
 
@@ -79,25 +86,43 @@ public interface ModSeeds {
             if (vanilla != null) {
                 ExDeorum.LOGGER.debug("Seed compat: {}/{} is published under minecraft:{}, sifting it",
                         owner, path, path);
-                fromDirt(owner, path, new ItemStack(vanilla));
+                fromDirt(owner, path, vanilla);
+                return;
             }
+
+            // Neither namespace has it, e.g. the mod renamed the seed or this compat entry is
+            // out of date. Say so instead of silently dropping the seed from the sieves.
+            ExDeorum.LOGGER.warn("Seed compat: no item {}/{} or minecraft:{} is registered, seed not added",
+                    owner, path, path);
         }
 
-        private void fromDirt(String namespace, String path, ItemStack result) {
-            var regular = Identifier.fromNamespaceAndPath(namespace, path);
-            // The compressed sieve is a separate recipe type with its own ids, so it needs its own
-            // namespace or both recipes would share a ResourceKey and collapse into one entry in
-            // the tunable probability config.
-            var compressed = Identifier.fromNamespaceAndPath("exdeorum_compressed_sieve", path);
+        private void fromDirt(String namespace, String path, Item result) {
+            // The result must stay a template: this runs from the recipe reload hook, which 26.2
+            // schedules before the item components are bound, so building an ItemStack here would
+            // throw "Components not bound yet". The sieves only unbox a real stack while actually
+            // dropping, by which point the components are long since bound.
+            var template = new ItemStackTemplate(result, 1);
 
             for (var tier : new Tier[]{new Tier(EItems.STRING_MESH.get(), STRING_CHANCE),
                     new Tier(EItems.FLINT_MESH.get(), FLINT_CHANCE),
                     new Tier(EItems.IRON_MESH.get(), IRON_CHANCE),
-                    new Tier(EItems.GOLDEN_MESH.get(), GOLDEN_CHANCE)}) {
+                    new Tier(EItems.GOLDEN_MESH.get(), GOLDEN_CHANCE),
+                    new Tier(EItems.DIAMOND_MESH.get(), DIAMOND_CHANCE),
+                    new Tier(EItems.NETHERITE_MESH.get(), NETHERITE_CHANCE)}) {
+                // Per-mesh ids, mirroring how the data pack names its sieve recipes, so every tier
+                // is a separately tunable entry in the probability config instead of four holders
+                // sharing one key.
+                var meshId = BuiltInRegistries.ITEM.getKey(tier.mesh()).getPath();
+                var regular = Identifier.fromNamespaceAndPath(namespace, path + "/" + meshId);
+                // The compressed sieve is a separate recipe type with its own ids, so it needs its
+                // own namespace or both recipes would share a ResourceKey and collapse into one
+                // entry in the tunable probability config.
+                var compressed = Identifier.fromNamespaceAndPath("exdeorum_compressed_sieve", path + "/" + meshId);
                 var mesh = Ingredient.of(tier.mesh());
 
-                ExDeorumApi.addSieveDrops(ExDeorumApi.SieveDrop.chance(regular, DIRT, mesh, result, 1, tier.chance()));
-                ExDeorumApi.addCompressedSieveDrops(ExDeorumApi.SieveDrop.chance(compressed, COMPRESSED_DIRT, mesh, result, 1, tier.chance()));
+                ExDeorumApi.addSieveDrops(ExDeorumApi.SieveDrop.chance(regular, DIRT, mesh, template, 1, tier.chance()));
+                ExDeorumApi.addCompressedSieveDrops(ExDeorumApi.SieveDrop.chance(compressed, COMPRESSED_DIRT, mesh, template,
+                        COMPRESSED_ROLLS, tier.chance()));
             }
         }
 

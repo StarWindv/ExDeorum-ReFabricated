@@ -17,11 +17,11 @@ import net.minecraft.world.level.material.Fluids;
  * {@link #volume()} and filling or emptying one unit swaps it for another item of the family.
  *
  * <p>Register one with {@link ExDeorumApi#registerFluidContainer(FluidContainer, Item...)} to let
- * those items pour into and take fluid out of Ex Deorum's barrels and crucibles. Transfers move
- * a whole volume at a time, which is what keeps an item from ending up in a state its own
- * variant cannot represent: the barrel needs room for the full volume to accept it, and needs
- * at least the full volume to fill a container. A barrel that cannot take or supply one whole
- * volume simply refuses the interaction instead of half filling a container.
+ * those items pour into and take fluid out of Ex Deorum's barrels and crucibles. Filling a
+ * container moves a whole volume at a time, which is what keeps an item from ending up in a
+ * state its own variant cannot represent: the tank needs room for the full volume to fill it.
+ * Pouring one out is looser: a tank with any room takes what it can, the container empties
+ * through the normal exchange, and what did not fit is voided.
  *
  * <p>Most bucket shaped items can just use {@link BucketContainer}. Implement this yourself when
  * a family has more than one item per fluid, or when the mapping is computed rather than

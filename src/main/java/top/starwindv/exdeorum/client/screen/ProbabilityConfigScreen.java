@@ -120,7 +120,6 @@ private static final int ROW_HEIGHT = 20;
         // ~1700 rows their own EditBox.
         this.value = new EditBox(this.font, 0, 0, VALUE_WIDTH, 14, Component.empty());
         this.value.setMaxLength(8);
-        this.value.setCanLoseFocus(false);
         this.value.setHint(Component.translatable(TranslationKeys.PROBABILITY_CONFIG_ENTER_VALUE));
         addRenderableWidget(this.value);
 
@@ -238,6 +237,16 @@ private static final int ROW_HEIGHT = 20;
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        // Park the row editor where it belongs BEFORE the widget pass renders it; set after,
+        // it would draw at the previous frame's spot and lag behind the list while scrolling.
+        var editing = this.selected != null && isRowVisible(this.selected);
+        this.value.setVisible(editing);
+
+        if (editing) {
+            this.value.setX(valueLeft() - 1);
+            this.value.setY(rowTop(this.selected) + 3);
+        }
+
         super.extractRenderState(graphics, mouseX, mouseY, delta);
         graphics.centeredText(this.font, this.title, this.width / 2, 1, COLOUR_LABEL);
 
@@ -270,16 +279,6 @@ private static final int ROW_HEIGHT = 20;
                 : label(TranslationKeys.PROBABILITY_CONFIG_COUNT, this.visible.size(), this.entries.size());
         graphics.text(this.font, Component.literal(this.font.plainSubstrByWidth(status.getString(), this.width - 2 * MARGIN)), MARGIN, statusTop(),
                 this.error != null ? COLOUR_ERROR : COLOUR_HINT, false);
-
-// Only park the editor over a row that is actually on screen, otherwise it would be
-        // drawn somewhere meaningless after scrolling.
-        var editing = this.selected != null && isRowVisible(this.selected);
-        this.value.setVisible(editing);
-
-        if (editing) {
-            this.value.setX(valueLeft() - 1);
-            this.value.setY(rowTop(this.selected) + 3);
-        }
 
         if (mouseY > top && mouseY < bottom) {
             var entry = entryAt(mouseX, mouseY);
@@ -460,22 +459,28 @@ private static String firstName(Ingredient ingredient) {
 
         var entry = entryAt(event.x(), event.y());
 
-        if (entry == null) {
-            if (this.search != null && !this.search.mouseClicked(event, doubleClick)) {
-                setFocused(this.search);
+        if (entry != null) {
+            if (event.x() >= resetLeft()) {
+                reset(entry);
                 return true;
             }
 
-            return super.mouseClicked(event, doubleClick);
-        }
+            if (event.x() >= valueLeft() - GAP / 2) {
+                select(entry);
+            }
 
-        if (event.x() >= resetLeft()) {
-            reset(entry);
             return true;
         }
 
-        if (event.x() >= valueLeft() - GAP / 2) {
-            select(entry);
+        // The buttons and the search box only receive their clicks through the normal widget
+        // dispatch, so hand the click to the widgets first; clicking anything else focuses
+        // the search box, letting the player type a filter without aiming at the small field.
+        if (super.mouseClicked(event, doubleClick)) {
+            return true;
+        }
+
+        if (this.search != null) {
+            setFocused(this.search);
         }
 
         return true;
@@ -538,6 +543,12 @@ private void select(ProbabilityTuner.Entry entry) {
         }
 
         if (this.value != null) {
+            // Clear the screen's focus pointer too, not just the widget's own flag, or the
+            // screen would keep routing keys and IME input to a hidden editor.
+            if (getFocused() == this.value) {
+                setFocused(null);
+            }
+
             this.value.setFocused(false);
             this.value.setVisible(false);
         }
@@ -613,6 +624,14 @@ private void select(ProbabilityTuner.Entry entry) {
 
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER || key == GLFW.GLFW_KEY_TAB) {
                 commit();
+
+                // Confirm and close: the row takes over and shows the committed value as text,
+                // so nothing is left sitting in a focused editor. A rejected value keeps the
+                // editor open with its error message so the typo can be corrected.
+                if (this.error == null) {
+                    deselect(false);
+                }
+
                 return true;
             }
 

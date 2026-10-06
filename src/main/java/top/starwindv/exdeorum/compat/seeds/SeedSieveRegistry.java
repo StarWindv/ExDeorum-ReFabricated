@@ -75,15 +75,16 @@ public final class SeedSieveRegistry {
 
             var collector = new ModSeeds.Collector();
             var applied = new ArrayList<String>(PROVIDERS.size());
+            var skipped = new ArrayList<String>(PROVIDERS.size());
 
             for (var provider : PROVIDERS) {
                 var modId = provider.modId();
+                var name = modId == null ? provider.getClass().getSimpleName() : modId;
 
                 if (modId != null && !isLoaded(modId)) {
+                    skipped.add(name);
                     continue;
                 }
-
-                var name = modId == null ? provider.getClass().getSimpleName() : modId;
 
                 try {
                     provider.register(collector);
@@ -98,7 +99,12 @@ public final class SeedSieveRegistry {
 
             processed = true;
 
-            ExDeorum.LOGGER.info("Ex Deorum sifting seed compat active for {}", applied);
+            if (skipped.isEmpty()) {
+                ExDeorum.LOGGER.info("Seed compat: active for {}", applied);
+            } else {
+                ExDeorum.LOGGER.info("Seed compat: active for {}; skipped because the mod is not loaded: {}",
+                        applied, skipped);
+            }
 
             return applied.size();
         }
