@@ -37,10 +37,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
 import top.starwindv.exdeorum.blockentity.helper.EnergyHelper;
 import top.starwindv.exdeorum.blockentity.helper.ItemHelper;
 import top.starwindv.exdeorum.client.screen.RedstoneControlWidget;
 import top.starwindv.exdeorum.menu.MachineData;
+import top.starwindv.exdeorum.transfer.RebornEnergyInterop;
 
 import java.util.function.Function;
 
@@ -50,6 +52,10 @@ public abstract class AbstractMachineBlockEntity<M extends AbstractMachineBlockE
     protected int redstoneMode;
     // not saved to NBT
     protected boolean hasRedstonePower;
+    // The TeamReborn energy adapter, created lazily by RebornEnergyInterop once some mod
+    // provides the API. Kept as Object so this class never references the API directly.
+    @Nullable
+    private Object energyApi;
 
     @SuppressWarnings("unchecked")
     public AbstractMachineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, Function<M, ItemHelper> inventory, int maxEnergy) {
@@ -57,6 +63,18 @@ public abstract class AbstractMachineBlockEntity<M extends AbstractMachineBlockE
 
         this.inventory = inventory.apply((M) this);
         this.energy = new EnergyHelper(maxEnergy);
+    }
+
+    /**
+     * This machine's energy as seen through the TeamReborn energy API. One adapter per
+     * machine, so every cable transaction stages against the same transaction participant.
+     */
+    public Object getOrCreateEnergyApi() {
+        if (this.energyApi == null) {
+            this.energyApi = RebornEnergyInterop.createAdapter(this.energy);
+        }
+
+        return this.energyApi;
     }
 
     @Override

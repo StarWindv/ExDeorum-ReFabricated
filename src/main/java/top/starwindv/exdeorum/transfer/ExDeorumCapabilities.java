@@ -45,5 +45,9 @@ public final class ExDeorumCapabilities {
         for (var item : EItems.WATERING_CANS) {
             FluidStorage.ITEM.registerForItems((variant, context) -> new WateringCanStorage(context), item.get());
         }
+
+        // Machines take FE from cables through the TeamReborn energy API, when some loaded
+        // mod provides it; without one this quietly does nothing.
+        RebornEnergyInterop.register();
     }
 }
