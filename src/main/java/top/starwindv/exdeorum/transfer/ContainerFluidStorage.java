@@ -52,8 +52,11 @@ public class ContainerFluidStorage implements Storage<FluidVariant> {
         StoragePreconditions.notBlankNotNegative(resource, maxAmount);
 
         var fluid = currentFluid();
+        var volumeDroplets = this.container.volume() * FluidTankStorage.DROPLETS_PER_MB;
+        // top.starwindv.exdeorum.ExDeorum.LOGGER.info("[Barrel debug] container insert fluid={} maxAmount={} held={} -> volumeDroplets={}",
+        //         resource, maxAmount, this.context.getItemVariant(), volumeDroplets);
 
-        if (fluid == null || fluid != Fluids.EMPTY || maxAmount < this.container.volume()) {
+        if (fluid == null || fluid != Fluids.EMPTY || maxAmount < volumeDroplets) {
             return 0;
         }
 
@@ -64,7 +67,7 @@ public class ContainerFluidStorage implements Storage<FluidVariant> {
         }
 
         if (this.context.exchange(ItemVariant.of(filled), 1, transaction) == 1) {
-            return this.container.volume();
+            return volumeDroplets;
         }
 
         return 0;
@@ -86,7 +89,7 @@ public class ContainerFluidStorage implements Storage<FluidVariant> {
         // fill, so keeping the remainder is not an option, and refusing the pour entirely
         // until the destination had a whole volume free played badly in practice. A full
         // destination accepts nothing, so a full barrel still refuses by itself.
-        var moved = Math.min(maxAmount, this.container.volume());
+        var moved = Math.min(maxAmount, this.container.volume() * FluidTankStorage.DROPLETS_PER_MB);
 
         if (this.context.exchange(ItemVariant.of(this.container.emptyItem()), 1, transaction) == 1) {
             return moved;
@@ -100,6 +103,7 @@ public class ContainerFluidStorage implements Storage<FluidVariant> {
         var fluid = currentFluid();
         var full = fluid != null && fluid != Fluids.EMPTY;
         var variant = full ? FluidVariant.of(fluid) : FluidVariant.blank();
-        return List.<StorageView<FluidVariant>>of(new TankAccess(this, variant, full ? this.container.volume() : 0, this.container.volume())).iterator();
+        var volumeDroplets = this.container.volume() * FluidTankStorage.DROPLETS_PER_MB;
+        return List.<StorageView<FluidVariant>>of(new TankAccess(this, variant, full ? volumeDroplets : 0, volumeDroplets)).iterator();
     }
 }

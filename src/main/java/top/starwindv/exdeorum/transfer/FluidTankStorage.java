@@ -18,10 +18,17 @@ import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext.Result
 import top.starwindv.exdeorum.blockentity.helper.FluidTank;
 import top.starwindv.exdeorum.fluid.FluidAction;
 import top.starwindv.exdeorum.fluid.FluidStack;
+import top.starwindv.exdeorum.api.ExDeorumApi;
 
 // Exposes a FluidTank through the Fabric Transfer API with transaction support,
 // using the same eager-mutation/snapshot-on-abort approach as ItemStackHandlerStorage.
 public class FluidTankStorage implements Storage<FluidVariant> {
+    // 26.2 quantifies fluids in droplets — one vanilla bucket holds 81000 of them (see Fabric's
+    // EmptyBucketStorage) — while Ex Deorum's internal volumes are millibuckets with one bucket
+    // = 1000 mB. Every Transfer API boundary speaks droplets and converts here.
+    public static final long DROPLETS_PER_BUCKET = 81000L;
+    public static final long DROPLETS_PER_MB = DROPLETS_PER_BUCKET / ExDeorumApi.BUCKET_VOLUME;
+
     private final FluidTank tank;
     private final Map<TransactionContext, FluidStack> snapshots = new HashMap<>();
 
@@ -39,8 +46,9 @@ public class FluidTankStorage implements Storage<FluidVariant> {
 
         participate(transaction);
 
-        var stack = new FluidStack(resource.getFluid(), (int) Math.min(maxAmount, Integer.MAX_VALUE));
-        return this.tank.fill(stack, FluidAction.EXECUTE);
+        var stack = new FluidStack(resource.getFluid(), (int) Math.min(maxAmount / DROPLETS_PER_MB, Integer.MAX_VALUE));
+        var filled = this.tank.fill(stack, FluidAction.EXECUTE);
+        return filled * DROPLETS_PER_MB;
     }
 
     @Override
@@ -53,8 +61,8 @@ public class FluidTankStorage implements Storage<FluidVariant> {
 
         participate(transaction);
 
-        var drained = this.tank.drain(new FluidStack(resource.getFluid(), (int) Math.min(maxAmount, Integer.MAX_VALUE)), FluidAction.EXECUTE);
-        return drained.getAmount();
+        var drained = this.tank.drain(new FluidStack(resource.getFluid(), (int) Math.min(maxAmount / DROPLETS_PER_MB, Integer.MAX_VALUE)), FluidAction.EXECUTE);
+        return drained.getAmount() * DROPLETS_PER_MB;
     }
 
     @Override
@@ -86,12 +94,12 @@ public class FluidTankStorage implements Storage<FluidVariant> {
 
         @Override
         public long getAmount() {
-            return this.isResourceBlank() ? 0 : FluidTankStorage.this.tank.getFluidAmount();
+            return this.isResourceBlank() ? 0 : FluidTankStorage.this.tank.getFluidAmount() * DROPLETS_PER_MB;
         }
 
         @Override
         public long getCapacity() {
-            return FluidTankStorage.this.tank.getCapacity();
+            return FluidTankStorage.this.tank.getCapacity() * DROPLETS_PER_MB;
         }
 
         @Override

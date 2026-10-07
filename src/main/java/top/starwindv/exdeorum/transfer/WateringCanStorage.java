@@ -59,12 +59,12 @@ public class WateringCanStorage implements Storage<FluidVariant> {
             return 0;
         }
 
-        var filled = (int) Math.min(space, maxAmount);
+        var filled = (int) Math.min(space, maxAmount / FluidTankStorage.DROPLETS_PER_MB);
         var patch = DataComponentPatch.builder().set(EDataComponents.WATERING_CAN.get(), new FluidContent(Fluids.WATER, contents.amount() + filled)).build();
         var newVariant = this.context.getItemVariant().withComponents(patch);
 
         if (this.context.exchange(newVariant, 1, transaction) == 1) {
-            return filled;
+            return filled * FluidTankStorage.DROPLETS_PER_MB;
         }
 
         return 0;
@@ -80,6 +80,6 @@ public class WateringCanStorage implements Storage<FluidVariant> {
     public Iterator<StorageView<FluidVariant>> iterator() {
         var contents = contents();
         var variant = contents.isEmpty() ? FluidVariant.blank() : FluidVariant.of(contents.fluid());
-        return List.<StorageView<FluidVariant>>of(new TankAccess(this, variant, contents.isEmpty() ? 0 : contents.amount(), capacity())).iterator();
+        return List.<StorageView<FluidVariant>>of(new TankAccess(this, variant, contents.isEmpty() ? 0 : contents.amount() * FluidTankStorage.DROPLETS_PER_MB, capacity() * FluidTankStorage.DROPLETS_PER_MB)).iterator();
     }
 }

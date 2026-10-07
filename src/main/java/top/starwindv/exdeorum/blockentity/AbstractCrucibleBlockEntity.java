@@ -54,6 +54,9 @@ import top.starwindv.exdeorum.fluid.FluidAction;
 import top.starwindv.exdeorum.fluid.FluidStack;
 import top.starwindv.exdeorum.blockentity.helper.FluidTank;
 import top.starwindv.exdeorum.blockentity.helper.ItemStackHandler;
+import top.starwindv.exdeorum.blockentity.helper.WaterPurityHolder;
+import top.starwindv.exdeorum.blockentity.helper.WaterPurityStore;
+import top.starwindv.exdeorum.compat.thirst.ThirstCompat;
 import top.starwindv.exdeorum.transfer.FluidTankStorage;
 import top.starwindv.exdeorum.util.AuxLight;
 import top.starwindv.exdeorum.util.Lazy;
@@ -68,7 +71,7 @@ import top.starwindv.exdeorum.registry.EItems;
 import java.util.HashMap;
 import java.util.function.Consumer;
 
-public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
+public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity implements WaterPurityHolder {
     // todo replace
     public static final Lazy<HashMap<Item, Block>> MELT_OVERRIDES = Lazy.of(() -> {
         var map = new HashMap<Item, Block>();
@@ -81,13 +84,27 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
 
     private final AbstractCrucibleBlockEntity.ItemHandler item = new AbstractCrucibleBlockEntity.ItemHandler();
     private final AbstractCrucibleBlockEntity.FluidHandler tank = new AbstractCrucibleBlockEntity.FluidHandler();
+    private final WaterPurityStore waterPurity = new WaterPurityStore();
 
     private Block lastMelted = Blocks.AIR;
     private Fluid fluid = Fluids.EMPTY;
     private short solids;
+    // Purity of the water the item currently melting will produce: rain-fed ice counts as
+    // natural water, everything organic is dirty.
+    private int pendingPurity = ThirstCompat.defaultPurity();
 
     public AbstractCrucibleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
+    }
+
+    @Override
+    public void setWaterPurity(int purity) {
+        this.waterPurity.assign(purity);
+    }
+
+    @Override
+    public void mixWaterPurity(int purity) {
+        this.waterPurity.mix(purity);
     }
 
     // NBT
@@ -96,6 +113,7 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
         super.saveAdditional(output);
 
         this.tank.serialize(output.child("tank"));
+        this.waterPurity.save(output);
         if (this.lastMelted != Blocks.AIR) {
             output.putString("lastMelted", BuiltInRegistries.BLOCK.getKey(this.lastMelted).toString());
         }
@@ -110,6 +128,7 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
         super.loadAdditional(input);
 
         this.tank.deserialize(input.childOrEmpty("tank"));
+        this.waterPurity.load(input);
         this.lastMelted = input.getString("lastMelted")
                 .map(Identifier::parse)
                 .flatMap(id -> BuiltInRegistries.BLOCK.get(id).map(Holder.Reference::value))
@@ -181,7 +200,34 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
         var playerItem = player.getItemInHand(hand);
 
         if (hasItemFluidHandler(playerItem)) {
-            return FluidStorageUtil.interactWithFluidStorage(new FluidTankStorage(this.tank), player, hand) ? InteractionResult.SUCCESS : InteractionResult.TRY_WITH_EMPTY_HAND;
+            // Water purity follows the transfer, same as the barrel: pouring in mixes
+            // downwards, filling out stamps the container with the crucible's purity.
+            var amountBefore = this.tank.getFluidAmount();
+            var pouredFromContainer = ThirstCompat.loaded() && ThirstCompat.isWaterContainer(playerItem);
+            var pouredPurity = ThirstCompat.getPurity(playerItem);
+            var moved = FluidStorageUtil.interactWithFluidStorage(new FluidTankStorage(this.tank), player, hand);
+
+            if (moved && !level.isClientSide() && ThirstCompat.loaded()) {
+                var amountAfter = this.tank.getFluidAmount();
+                var isWater = !this.tank.isEmpty() && this.tank.getFluid().getFluid() == Fluids.WATER;
+
+                if (amountAfter > amountBefore && isWater && pouredFromContainer) {
+                    if (amountBefore == 0) {
+                        this.waterPurity.assign(pouredPurity);
+                    } else {
+                        this.waterPurity.mix(pouredPurity);
+                    }
+                    markUpdated();
+                } else if (amountAfter < amountBefore && isWater) {
+                    var filled = player.getItemInHand(hand);
+
+                    if (ThirstCompat.isWaterContainer(filled)) {
+                        ThirstCompat.setPurity(filled, this.waterPurity.get());
+                    }
+                }
+            }
+
+            return moved ? InteractionResult.SUCCESS : InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
         if (playerItem.getItem() == Items.GLASS_BOTTLE && this.getType() == EBlockEntities.WATER_CRUCIBLE.get() && EConfig.SERVER.allowWaterBottleTransfer.get()) {
@@ -189,7 +235,7 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
 
             if (this.tank.drain(fluid, FluidAction.SIMULATE).getAmount() == 250) {
                 if (!level.isClientSide()) {
-                    BarrelBlockEntity.extractWaterBottle(this.tank, level, player, playerItem, fluid);
+                    BarrelBlockEntity.extractWaterBottle(this.tank, level, player, playerItem, fluid, this.waterPurity.get());
                     markUpdated();
                 }
                 return InteractionResult.SUCCESS;
@@ -235,6 +281,7 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
         var contained = this.tank.getFluid();
         shrinkAction.accept(item);
         this.solids = (short) Math.min(this.solids + result.amount(), MAX_SOLIDS);
+        this.pendingPurity = isFrozenWater(meltItem) ? ThirstCompat.ACCEPTABLE : ThirstCompat.DIRTY;
 
         if (contained.isEmpty()) {
             this.fluid = result.fluid();
@@ -256,6 +303,12 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
         markUpdated();
 
         return true;
+    }
+
+    // Frozen water is just nature's water; everything else that melts into water is organic.
+    private static boolean isFrozenWater(Item item) {
+        return item == Items.SNOWBALL || item == Items.SNOW_BLOCK || item == Items.ICE
+                || item == Items.PACKED_ICE || item == Items.BLUE_ICE;
     }
 
     private InsertionResult canInsertItem(ItemStack item) {
@@ -397,10 +450,16 @@ public abstract class AbstractCrucibleBlockEntity extends ETankBlockEntity {
                         if (tank.isEmpty()) {
                             if (crucible.fluid != null) {
                                 tank.setFluid(new FluidStack(crucible.fluid, delta));
+                                if (crucible.fluid == Fluids.WATER) {
+                                    crucible.setWaterPurity(crucible.pendingPurity);
+                                }
                                 updateLight(level, pos, crucible.fluid);
                             }
                         } else {
                             tank.getFluid().grow(delta);
+                            if (crucible.fluid == Fluids.WATER) {
+                                crucible.mixWaterPurity(crucible.pendingPurity);
+                            }
                         }
 
                         // Sync to client

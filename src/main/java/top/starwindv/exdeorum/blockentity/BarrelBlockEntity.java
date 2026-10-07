@@ -62,6 +62,9 @@ import top.starwindv.exdeorum.fluid.FluidAction;
 import top.starwindv.exdeorum.fluid.FluidStack;
 import top.starwindv.exdeorum.blockentity.helper.FluidTank;
 import top.starwindv.exdeorum.blockentity.helper.ItemStackHandler;
+import top.starwindv.exdeorum.blockentity.helper.WaterPurityHolder;
+import top.starwindv.exdeorum.blockentity.helper.WaterPurityStore;
+import top.starwindv.exdeorum.compat.thirst.ThirstCompat;
 import top.starwindv.exdeorum.transfer.FluidTankStorage;
 import org.jetbrains.annotations.Nullable;
 import top.starwindv.exdeorum.block.BarrelBlock;
@@ -75,12 +78,13 @@ import top.starwindv.exdeorum.recipe.barrel.FluidTransformationRecipe;
 import top.starwindv.exdeorum.registry.EBlockEntities;
 import top.starwindv.exdeorum.registry.ESounds;
 
-public class BarrelBlockEntity extends ETankBlockEntity {
+public class BarrelBlockEntity extends ETankBlockEntity implements WaterPurityHolder {
     private static final int MOSS_SPREAD_RANGE = 2;
     private static final int MAX_CAPACITY = 1000;
 
     private final BarrelBlockEntity.ItemHandler item = new BarrelBlockEntity.ItemHandler();
     private final BarrelBlockEntity.FluidHandler tank = new BarrelBlockEntity.FluidHandler();
+    private final WaterPurityStore waterPurity = new WaterPurityStore();
     public float progress;
     public short compost;
     // compost colors (has to be shorts because Java bytes are signed and only go to 127, when need 255)
@@ -107,6 +111,7 @@ public class BarrelBlockEntity extends ETankBlockEntity {
 
         this.item.serialize(output.child("item"));
         this.tank.serialize(output.child("tank"));
+        this.waterPurity.save(output);
         output.putShort("compost", this.compost);
         output.putFloat("progress", this.progress);
         output.putShort("r", this.r);
@@ -120,11 +125,22 @@ public class BarrelBlockEntity extends ETankBlockEntity {
 
         this.item.deserialize(input.childOrEmpty("item"));
         this.tank.deserialize(input.childOrEmpty("tank"));
+        this.waterPurity.load(input);
         this.compost = (short) input.getShortOr("compost", (short) 0);
         this.progress = input.getFloatOr("progress", 0f);
         this.r = (short) input.getShortOr("r", (short) 0);
         this.g = (short) input.getShortOr("g", (short) 0);
         this.b = (short) input.getShortOr("b", (short) 0);
+    }
+
+    @Override
+    public void setWaterPurity(int purity) {
+        this.waterPurity.assign(purity);
+    }
+
+    @Override
+    public void mixWaterPurity(int purity) {
+        this.waterPurity.mix(purity);
     }
 
     @Override
@@ -230,10 +246,45 @@ public class BarrelBlockEntity extends ETankBlockEntity {
 
             this.isBeingFilledByPlayer = true;
 
-            if (FluidStorageUtil.interactWithFluidStorage(new FluidTankStorage(this.tank), player, hand)) {
+            // Water purity follows the transfer: pouring a container out mixes downwards
+            // (lowest purity wins), filling one stamps it with the barrel's purity.
+            var amountBefore = this.tank.getFluidAmount();
+            var wasWater = amountBefore > 0 && this.tank.getFluid().getFluid() == Fluids.WATER;
+            var pouredFromContainer = ThirstCompat.loaded() && ThirstCompat.isWaterContainer(stack);
+            var pouredPurity = ThirstCompat.getPurity(stack);
+            // top.starwindv.exdeorum.ExDeorum.LOGGER.info("[Barrel debug] useItemOn held={} amount={} valid={}",
+            //         stack.getItem(), amountBefore, hasNoSolids());
+
+            var foundStorage = ContainerItemContext.forPlayerInteraction(player, hand).find(FluidStorage.ITEM);
+            // top.starwindv.exdeorum.ExDeorum.LOGGER.info("[Barrel debug] item storage found={} class={}",
+            //         foundStorage != null, foundStorage == null ? "null" : foundStorage.getClass());
+
+            var moved = FluidStorageUtil.interactWithFluidStorage(new FluidTankStorage(this.tank), player, hand);
+            // top.starwindv.exdeorum.ExDeorum.LOGGER.info("[Barrel debug] interact moved={} after={}", moved, this.tank.getFluidAmount());
+
+            if (moved) {
                 this.isBeingFilledByPlayer = false;
                 tryInWorldFluidMixing();
                 markUpdated();
+
+                if (!level.isClientSide() && ThirstCompat.loaded()) {
+                    var amountAfter = this.tank.getFluidAmount();
+                    var isWaterNow = !this.tank.isEmpty() && this.tank.getFluid().getFluid() == Fluids.WATER;
+
+                    if (amountAfter > amountBefore && isWaterNow && pouredFromContainer) {
+                        if (amountBefore == 0) {
+                            this.waterPurity.assign(pouredPurity);
+                        } else {
+                            this.waterPurity.mix(pouredPurity);
+                        }
+                    } else if (amountAfter < amountBefore && wasWater) {
+                        var filled = player.getItemInHand(hand);
+
+                        if (ThirstCompat.isWaterContainer(filled)) {
+                            ThirstCompat.setPurity(filled, this.waterPurity.get());
+                        }
+                    }
+                }
 
                 // If the item is a fluid handler, try to transfer fluids
                 if (wasBurning && !isHotFluid(this.tank.getFluid().getFluid())) {
@@ -247,18 +298,30 @@ public class BarrelBlockEntity extends ETankBlockEntity {
                 var playerItem = player.getItemInHand(hand);
                 if (EConfig.SERVER.allowWaterBottleTransfer.get()) {
                     var fluid = new FluidStack(Fluids.WATER, 250);
+                    var wasEmpty = this.tank.getFluidAmount() == 0;
 
                     if (playerItem.getItem() == Items.POTION && playerItem.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER)) {
                         // All or nothing, matching the drain below. fill() would happily top the
                         // barrel up partially, which would void the rest of the bottle.
                         if (this.tank.fill(fluid, FluidAction.SIMULATE) == fluid.getAmount()) {
-                            if (!player.getAbilities().instabuild) {
+                            var bottlePurity = ThirstCompat.getPurity(playerItem);
+
+                            if (!level.isClientSide()) {
                                 // Not a plain setItemInHand: a stack has to keep its remaining bottles,
                                 // and the empty one goes to the inventory or the floor, the way
                                 // vanilla buckets hand it over. Same helper extractWaterBottle relies on.
                                 player.setItemInHand(hand, ItemUtils.createFilledResult(playerItem, player, new ItemStack(Items.GLASS_BOTTLE)));
                             }
                             this.tank.fill(fluid, FluidAction.EXECUTE);
+
+                            if (!level.isClientSide()) {
+                                if (wasEmpty) {
+                                    this.waterPurity.assign(bottlePurity);
+                                } else {
+                                    this.waterPurity.mix(bottlePurity);
+                                }
+                            }
+
                             level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BOTTLE_FILL, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
                             markUpdated();
@@ -266,11 +329,57 @@ public class BarrelBlockEntity extends ETankBlockEntity {
                         }
                     } else if (playerItem.getItem() == Items.GLASS_BOTTLE) {
                         if (this.tank.drain(fluid, FluidAction.SIMULATE).getAmount() == 250) {
-                            extractWaterBottle(this.tank, level, player, playerItem, fluid);
+                            extractWaterBottle(this.tank, level, player, playerItem, fluid, this.waterPurity.get());
 
                             markUpdated();
                             return InteractionResult.SUCCESS;
                         }
+                    }
+                }
+
+                // Thirst Was Taken's terracotta bowl: the filled one pours like a bottle and
+                // takes its purity along; the empty one fills like a bottle and inherits the
+                // barrel's purity. The other half of the pair goes back the way vanilla hands
+                // over bottles.
+                if (ThirstCompat.isTerracottaWaterBowl(playerItem)) {
+                    var fluid = new FluidStack(Fluids.WATER, 250);
+
+                    if (this.tank.fill(fluid, FluidAction.SIMULATE) == fluid.getAmount()) {
+                        var bowlPurity = ThirstCompat.getPurity(playerItem);
+                        var wasEmpty = this.tank.getFluidAmount() == 0;
+
+                        if (!level.isClientSide()) {
+                            // Same hand-over as the bottle above.
+                            player.setItemInHand(hand, ItemUtils.createFilledResult(playerItem, player, new ItemStack(ThirstCompat.terracottaBowl())));
+                        }
+                        this.tank.fill(fluid, FluidAction.EXECUTE);
+
+                        if (!level.isClientSide()) {
+                            if (wasEmpty) {
+                                this.waterPurity.assign(bowlPurity);
+                            } else {
+                                this.waterPurity.mix(bowlPurity);
+                            }
+                        }
+
+                        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BUCKET_EMPTY, SoundSource.NEUTRAL, 1.0F, 1.0F);
+
+                        markUpdated();
+                        return InteractionResult.SUCCESS;
+                    }
+                } else if (ThirstCompat.isTerracottaBowl(playerItem)) {
+                    var fluid = new FluidStack(Fluids.WATER, 250);
+
+                    if (this.tank.drain(fluid, FluidAction.SIMULATE).getAmount() == 250) {
+                        if (!level.isClientSide()) {
+                            var bowl = new ItemStack(ThirstCompat.terracottaWaterBowl());
+                            ThirstCompat.setPurity(bowl, this.waterPurity.get());
+                            player.setItemInHand(hand, ItemUtils.createFilledResult(playerItem, player, bowl));
+                            this.tank.drain(fluid, FluidAction.EXECUTE);
+                            level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BUCKET_FILL, SoundSource.NEUTRAL, 1.0F, 1.0F);
+                            markUpdated();
+                        }
+                        return InteractionResult.SUCCESS;
                     }
                 }
 
@@ -323,13 +432,14 @@ public class BarrelBlockEntity extends ETankBlockEntity {
         return InteractionResult.SUCCESS;
     }
 
-    // Also used by Water Crucibles
-    protected static void extractWaterBottle(FluidTank tank, Level level, Player player, ItemStack playerItem, FluidStack fluid) {
+    // Also used by Water Crucibles; the filled bottle inherits the source's water purity
+    protected static void extractWaterBottle(FluidTank tank, Level level, Player player, ItemStack playerItem, FluidStack fluid, int purity) {
         if (!player.getAbilities().instabuild) {
             playerItem.shrink(1);
         }
         var bottle = new ItemStack(Items.POTION);
         bottle.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.WATER));
+        ThirstCompat.setPurity(bottle, purity);
         if (!player.addItem(bottle)) {
             player.drop(bottle, false);
         }
@@ -611,9 +721,16 @@ public class BarrelBlockEntity extends ETankBlockEntity {
     public static void fillRainWater(EBlockEntity block, FluidHelper tank) {
         if (tank.isEmpty()) {
             tank.setFluid(new FluidStack(Fluids.WATER, 1));
+            // Rain is nature's water: acceptable, the same tier as flowing water
+            if (block instanceof WaterPurityHolder holder) {
+                holder.setWaterPurity(ThirstCompat.ACCEPTABLE);
+            }
             block.markUpdated();
         } else if (tank.getFluid().getFluid() == Fluids.WATER) {
             tank.getFluid().grow(1);
+            if (block instanceof WaterPurityHolder holder) {
+                holder.mixWaterPurity(ThirstCompat.ACCEPTABLE);
+            }
             block.markUpdated();
         }
     }
