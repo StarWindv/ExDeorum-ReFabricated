@@ -53,6 +53,7 @@ public final class SeedSieveRegistry {
         register(new FarmersDelightSeeds());
         register(new RusticDelightSeeds());
         register(new UbesDelightSeeds());
+        register(new TechRebornDrops());
     }
 
     /**

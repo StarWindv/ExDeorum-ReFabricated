@@ -19,8 +19,8 @@ import top.starwindv.exdeorum.registry.ECompressedBlocks;
 import top.starwindv.exdeorum.registry.EItems;
 
 /**
- * One mod's contribution to the sieves: the seeds it adds and how likely each mesh tier is to
- * yield them.
+ * One mod's contribution to the sieves: the seeds and other starter drops it adds, and how
+ * likely each mesh tier is to yield them.
  *
  * <p>Implementations are only consulted when their mod is loaded, and every item lookup is
  * optional, so a provider for an absent mod, or for a mod that renamed an item in a newer
@@ -46,9 +46,9 @@ public interface ModSeeds {
      * through the mesh tree rather than being flat.
      */
     final class Collector {
-        // Deliberately well below the vanilla seed curve (wheat runs 0.125 -> 0.3): Ex Deorum
-        // worlds are skyblocks where a handful of mod seeds go a long way, so a full stack of
-        // dirt should yield a few, not dozens.
+        // Seed chances are deliberately well below the vanilla curve (wheat runs 0.125 -> 0.3):
+        // Ex Deorum worlds are skyblocks where a handful of mod seeds go a long way, so a full
+        // stack of dirt should yield a few, not dozens.
         private static final float STRING_CHANCE = 0.05f;
         private static final float FLINT_CHANCE = 0.06f;
         private static final float IRON_CHANCE = 0.07f;
@@ -58,9 +58,17 @@ public interface ModSeeds {
         // The compressed sieve makes the same per-roll draws as the regular one, but a
         // compressed dirt block stands for several, so its recipes all roll 7 times.
         private static final int COMPRESSED_ROLLS = 7;
+        // Gravel drops reuse the data pack's own ore chunk chances, so they sit at the same
+        // place in the progression as the chunks every player already knows.
+        private static final float GRAVEL_IRON_CHANCE = 0.09f;
+        private static final float GRAVEL_GOLDEN_CHANCE = 0.07f;
+        private static final float GRAVEL_DIAMOND_CHANCE = 0.11f;
+        private static final float GRAVEL_NETHERITE_CHANCE = 0.12f;
 
         private static final Ingredient DIRT = Ingredient.of(Blocks.DIRT);
         private static final Ingredient COMPRESSED_DIRT = Ingredient.of(ECompressedBlocks.COMPRESSED_DIRT.getBlock());
+        private static final Ingredient GRAVEL = Ingredient.of(Blocks.GRAVEL);
+        private static final Ingredient COMPRESSED_GRAVEL = Ingredient.of(ECompressedBlocks.COMPRESSED_GRAVEL.getBlock());
 
         /**
          * Sifts dirt with every mesh, dropping the seed of {@code owner} at {@code path}.
@@ -94,6 +102,40 @@ public interface ModSeeds {
             // out of date. Say so instead of silently dropping the seed from the sieves.
             ExDeorum.LOGGER.warn("Seed compat: no item {}/{} or minecraft:{} is registered, seed not added",
                     owner, path, path);
+        }
+
+        /**
+         * Sifts gravel with the iron mesh and above — the same window the data pack uses for
+         * its ore chunks, whose chances these reuse. Gravel is where sieved goods start
+         * looking processed, so mod items that are not plants belong here rather than in dirt.
+         *
+         * <p>Registers the compressed sieve variants too, which make the same draws with seven
+         * rolls like the compressed dirt ones.
+         */
+        public void dropFromGravel(String owner, String path) {
+            var item = item(owner, path);
+
+            if (item == null) {
+                ExDeorum.LOGGER.warn("Seed compat: no item {}/{} or minecraft:{} is registered, drop not added",
+                        owner, path, path);
+                return;
+            }
+
+            var result = new ItemStackTemplate(item, 1);
+
+            for (var tier : new Tier[]{new Tier(EItems.IRON_MESH.get(), GRAVEL_IRON_CHANCE),
+                    new Tier(EItems.GOLDEN_MESH.get(), GRAVEL_GOLDEN_CHANCE),
+                    new Tier(EItems.DIAMOND_MESH.get(), GRAVEL_DIAMOND_CHANCE),
+                    new Tier(EItems.NETHERITE_MESH.get(), GRAVEL_NETHERITE_CHANCE)}) {
+                var mesh = Ingredient.of(tier.mesh());
+                var suffix = path + "/" + BuiltInRegistries.ITEM.getKey(tier.mesh()).getPath();
+
+                ExDeorumApi.addSieveDrops(ExDeorumApi.SieveDrop.chance(
+                        Identifier.fromNamespaceAndPath(owner, suffix), GRAVEL, mesh, result, 1, tier.chance()));
+                ExDeorumApi.addCompressedSieveDrops(ExDeorumApi.SieveDrop.chance(
+                        Identifier.fromNamespaceAndPath("exdeorum_compressed_sieve", suffix), COMPRESSED_GRAVEL, mesh,
+                        result, COMPRESSED_ROLLS, tier.chance()));
+            }
         }
 
         private void fromDirt(String namespace, String path, Item result) {

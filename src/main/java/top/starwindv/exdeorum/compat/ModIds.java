@@ -78,4 +78,5 @@ public class ModIds {
     public static final String FARMERS_DELIGHT = "farmersdelight";
     public static final String RUSTIC_DELIGHT = "rusticdelight";
     public static final String UBES_DELIGHT = "ubesdelight";
+    public static final String TECHREBORN = "techreborn";
 }
